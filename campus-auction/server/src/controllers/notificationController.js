@@ -20,6 +20,15 @@ export async function markAsRead(req, res, next) {
   }
 }
 
+export async function markAllAsRead(req, res, next) {
+  try {
+    const success = await notificationService.markAllNotificationsAsRead(req.user.uid);
+    res.json({ success });
+  } catch (error) {
+    next(error);
+  }
+}
+
 export async function getSavedSearches(req, res, next) {
   try {
     if (isFirebaseConfigured && db) {

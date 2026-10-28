@@ -39,9 +39,11 @@ export default function Header() {
     }
 
     loadNotifs();
+    window.addEventListener('notifications-updated', loadNotifs);
     const interval = setInterval(loadNotifs, 15000); // Polling unread count
     return () => {
       mounted = false;
+      window.removeEventListener('notifications-updated', loadNotifs);
       clearInterval(interval);
     };
   }, [currentUser]);

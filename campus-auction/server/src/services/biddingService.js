@@ -112,7 +112,8 @@ export async function placeBid(auctionId, amountPaise, user) {
           previousLeaderUid,
           extended,
           newEndsAt,
-          auctionTitle: auction.title
+          auctionTitle: auction.title,
+          sellerUid: auction.sellerUid
         };
       });
     } catch (err) {
@@ -197,14 +198,26 @@ export async function placeBid(auctionId, amountPaise, user) {
       previousLeaderUid,
       extended,
       newEndsAt,
-      auctionTitle: auction.title
+      auctionTitle: auction.title,
+      sellerUid: auction.sellerUid
     };
   }
 
   // --- POST-TRANSACTION ASYNC ACTIONS (Never execute inside transaction callback) ---
-  const { bid, previousLeaderUid, extended, newEndsAt, auctionTitle } = transactionResult;
+  const { bid, previousLeaderUid, extended, newEndsAt, auctionTitle, sellerUid } = transactionResult;
 
-  // 1. Notify previous leader they have been outbid
+  // 1. Notify auction seller when another user places a valid bid
+  if (sellerUid && sellerUid !== bidderUid) {
+    createNotification({
+      userId: sellerUid,
+      title: 'New Bid on Your Auction!',
+      message: `${bidderName} placed a bid of ₹${amountPaise / 100} on "${auctionTitle}".`,
+      type: 'NEW_BID',
+      auctionId
+    }).catch(console.error);
+  }
+
+  // 2. Notify previous leader they have been outbid
   if (previousLeaderUid && previousLeaderUid !== bidderUid) {
     createNotification({
       userId: previousLeaderUid,
@@ -215,7 +228,7 @@ export async function placeBid(auctionId, amountPaise, user) {
     }).catch(console.error);
   }
 
-  // 2. Notify about anti-sniping extension
+  // 3. Notify about anti-sniping extension
   if (extended) {
     createNotification({
       userId: bidderUid,

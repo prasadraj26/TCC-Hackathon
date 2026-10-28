@@ -6,6 +6,7 @@ const router = Router();
 
 // Notifications
 router.get('/', authenticate, notificationController.getNotifications);
+router.post('/mark-all-read', authenticate, notificationController.markAllAsRead);
 router.patch('/:id/read', authenticate, notificationController.markAsRead);
 
 // Saved Searches

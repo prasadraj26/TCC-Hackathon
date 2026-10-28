@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+import { API_BASE } from './apiConfig';
 
 export async function placeBid(auctionId, amountPaise, headers) {
   const res = await fetch(`${API_BASE}/auctions/${auctionId}/bids`, {

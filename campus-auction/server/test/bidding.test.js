@@ -9,8 +9,14 @@ import assert from 'node:assert';
 import { placeBid, getAuctionBids } from '../src/services/biddingService.js';
 import { registerAutoBid, getAuctionAutoBids } from '../src/services/autoBidService.js';
 import * as auctionService from '../src/services/auctionService.js';
-import { mockUsers, mockAuctions, mockBids, mockAutoBids } from '../src/utils/mockStore.js';
+import { mockUsers, mockAuctions, mockBids, mockAutoBids, mockNotifications } from '../src/utils/mockStore.js';
 import { getUserProfile, upsertUserProfile, formatDisplayName, isRawUidOrFake } from '../src/services/userService.js';
+import {
+  getUserNotifications,
+  markNotificationAsRead,
+  markAllNotificationsAsRead,
+  createNotification
+} from '../src/services/notificationService.js';
 
 let passedCount = 0;
 let failedCount = 0;
@@ -331,6 +337,112 @@ async function runTests() {
     mockAutoBids.length = 0;
     delete mockUsers['test_user_pooja'];
     delete mockUsers['test_user_kunal'];
+  });
+
+  await test('13. Real Notification System: NEW_BID on seller auction, OUTBID on leading bidder, mark read, mark all read, and security isolation', async () => {
+    // Clean mock notifications
+    mockNotifications.length = 0;
+
+    const sellerUser = { uid: 'notif_seller_1', name: 'Rohan Sharma', email: 'rohan@campus.edu' };
+    const bidderOne = { uid: 'notif_bidder_a', name: 'Ananya Roy', email: 'ananya@campus.edu' };
+    const bidderTwo = { uid: 'notif_bidder_b', name: 'Vikram Patel', email: 'vikram@campus.edu' };
+    const attackerUser = { uid: 'notif_attacker', name: 'Sneaky User', email: 'sneaky@campus.edu' };
+
+    await upsertUserProfile(sellerUser.uid, { name: sellerUser.name });
+    await upsertUserProfile(bidderOne.uid, { name: bidderOne.name });
+    await upsertUserProfile(bidderTwo.uid, { name: bidderTwo.name });
+
+    // Step 1: Account A (Seller) creates an auction
+    const auction = await auctionService.createAuction({
+      title: 'Scientific Calculator fx-991EX',
+      category: 'Electronics',
+      condition: 'Like New',
+      startingPricePaise: 80000, // ₹800
+      minIncrementPaise: 5000,   // ₹50
+      endsAt: new Date(Date.now() + 3600000).toISOString(),
+      location: 'Library'
+    }, sellerUser);
+
+    // Initial check: seller has 0 notifications
+    let sellerNotifs = await getUserNotifications(sellerUser.uid);
+    assert.strictEqual(sellerNotifs.length, 0);
+
+    // Step 2: Account B (bidderOne) places a valid bid
+    await placeBid(auction.id, 80000, bidderOne);
+
+    // Step 3: Account A receives a NEW_BID notification
+    sellerNotifs = await getUserNotifications(sellerUser.uid);
+    assert.strictEqual(sellerNotifs.length, 1, 'Seller should receive exactly 1 notification');
+    assert.strictEqual(sellerNotifs[0].type, 'NEW_BID');
+    assert.strictEqual(sellerNotifs[0].userId, sellerUser.uid);
+    assert.strictEqual(sellerNotifs[0].auctionId, auction.id);
+    assert.strictEqual(sellerNotifs[0].read, false);
+    assert(sellerNotifs[0].message.includes('Ananya Roy'));
+    assert(sellerNotifs[0].message.includes('800'));
+
+    // Bidder One should not receive any notification about their own bid
+    const bidderOneNotifsAfterFirstBid = await getUserNotifications(bidderOne.uid);
+    assert.strictEqual(bidderOneNotifsAfterFirstBid.length, 0, 'Bidder should not be notified of their own bid');
+
+    // Step 4: Account C (bidderTwo) places a higher valid bid -> outbidding Bidder One
+    await placeBid(auction.id, 85000, bidderTwo);
+
+    // Bidder One receives an OUTBID notification
+    const bidderOneNotifsAfterOutbid = await getUserNotifications(bidderOne.uid);
+    assert.strictEqual(bidderOneNotifsAfterOutbid.length, 1, 'Previous leader should receive an OUTBID notification');
+    assert.strictEqual(bidderOneNotifsAfterOutbid[0].type, 'OUTBID');
+    assert.strictEqual(bidderOneNotifsAfterOutbid[0].userId, bidderOne.uid);
+    assert.strictEqual(bidderOneNotifsAfterOutbid[0].read, false);
+    assert(bidderOneNotifsAfterOutbid[0].message.includes('850'));
+
+    // Seller receives a 2nd NEW_BID notification
+    sellerNotifs = await getUserNotifications(sellerUser.uid);
+    assert.strictEqual(sellerNotifs.length, 2, 'Seller should now have 2 notifications');
+
+    // Bidder Two (the new leader) has 0 notifications (no self-notification)
+    const bidderTwoNotifs = await getUserNotifications(bidderTwo.uid);
+    assert.strictEqual(bidderTwoNotifs.length, 0);
+
+    // Step 5: Mark single notification as read
+    const notifToRead = sellerNotifs[0];
+    const markSingleSuccess = await markNotificationAsRead(notifToRead.id, sellerUser.uid);
+    assert.strictEqual(markSingleSuccess, true);
+
+    sellerNotifs = await getUserNotifications(sellerUser.uid);
+    const updatedNotif = sellerNotifs.find(n => n.id === notifToRead.id);
+    assert.strictEqual(updatedNotif.read, true);
+    assert(Boolean(updatedNotif.readAt));
+
+    // Step 6: Security isolation - Attacker cannot read or mark Seller's notifications as read
+    const attackerNotifs = await getUserNotifications(attackerUser.uid);
+    assert.strictEqual(attackerNotifs.length, 0, 'Attacker cannot read other users notifications');
+
+    const unauthorizedMark = await markNotificationAsRead(sellerNotifs[1].id, attackerUser.uid);
+    assert.strictEqual(unauthorizedMark, false, 'Attacker cannot mark other users notification as read');
+
+    // Seller's second notification is still unread
+    sellerNotifs = await getUserNotifications(sellerUser.uid);
+    assert.strictEqual(sellerNotifs[1].read, false);
+
+    // Step 7: Mark all notifications as read
+    const markAllSuccess = await markAllNotificationsAsRead(sellerUser.uid);
+    assert.strictEqual(markAllSuccess, true);
+
+    sellerNotifs = await getUserNotifications(sellerUser.uid);
+    assert(sellerNotifs.every(n => n.read === true), 'All notifications for seller should be marked read');
+
+    // Bidder One's notification is still unread (markAll is strictly user-scoped)
+    const bidderOneStillUnread = await getUserNotifications(bidderOne.uid);
+    assert.strictEqual(bidderOneStillUnread[0].read, false, 'Other users notifications must not be affected by markAll');
+
+    // Clean up
+    mockNotifications.length = 0;
+    mockAuctions.length = 0;
+    mockBids.length = 0;
+    delete mockUsers[sellerUser.uid];
+    delete mockUsers[bidderOne.uid];
+    delete mockUsers[bidderTwo.uid];
+    delete mockUsers[attackerUser.uid];
   });
 
   console.log('\n======================================================');

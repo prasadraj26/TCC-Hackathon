@@ -232,4 +232,15 @@ export async function processAutoBidsAfterNewBid(auctionId, currentPricePaise, c
       auctionId
     }).catch(console.error);
   }
+
+  // Notify seller of new bid
+  if (auction.sellerUid && auction.sellerUid !== topContender.bidderUid) {
+    createNotification({
+      userId: auction.sellerUid,
+      title: 'New Bid on Your Auction!',
+      message: `${topContender.bidderName} placed an auto-bid of ₹${calculatedBid / 100} on "${auction.title}".`,
+      type: 'NEW_BID',
+      auctionId
+    }).catch(console.error);
+  }
 }

@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+import { API_BASE } from './apiConfig';
 
 export async function fetchNotifications(headers) {
   const res = await fetch(`${API_BASE}/notifications`, { headers });
@@ -14,6 +14,16 @@ export async function markNotificationRead(id, headers) {
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'Failed to mark notification as read');
+  return data.success;
+}
+
+export async function markAllNotificationsRead(headers) {
+  const res = await fetch(`${API_BASE}/notifications/mark-all-read`, {
+    method: 'POST',
+    headers
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to mark all notifications as read');
   return data.success;
 }
 

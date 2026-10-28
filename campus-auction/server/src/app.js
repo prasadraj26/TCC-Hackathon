@@ -19,11 +19,34 @@ const PORT = process.env.PORT || 5000;
 const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 'http://localhost:5173';
 
 // Middleware
+const allowedOrigins = [
+  CLIENT_ORIGIN,
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'https://tcc-hackathon-campus-auction.vercel.app'
+].filter(Boolean);
+
 app.use(cors({
-  origin: [CLIENT_ORIGIN, 'http://localhost:5173', 'http://127.0.0.1:5173'],
-  credentials: true
+  origin: (origin, callback) => {
+    // Allow server-to-server, curl, mobile or pre-fetch without origin
+    if (!origin) return callback(null, true);
+
+    // Allow configured origins, Vercel app domains, and local development
+    if (
+      allowedOrigins.includes(origin) ||
+      origin.endsWith('.vercel.app') ||
+      /^https?:\/\/localhost(:\d+)?$/.test(origin) ||
+      /^https?:\/\/127\.0\.0\.1(:\d+)?$/.test(origin)
+    ) {
+      return callback(null, true);
+    }
+
+    return callback(null, true);
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
 }));
-app.use(express.json({limit: '10mb' }));
+app.use(express.json({ limit: '10mb' }));
 
 // Request logger for visibility
 app.use((req, res, next) => {
