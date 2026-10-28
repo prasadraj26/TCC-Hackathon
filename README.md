@@ -146,35 +146,8 @@ Every bid executes within a Firestore transaction:
 
 ---
 
-## 6. Environment Variables
 
-### Frontend (`web/.env`):
-```env
-VITE_API_BASE_URL=http://localhost:5000/api
-VITE_FIREBASE_API_KEY=your-firebase-api-key
-VITE_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
-VITE_FIREBASE_PROJECT_ID=your-firebase-project-id
-VITE_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
-VITE_FIREBASE_MESSAGING_SENDER_ID=your-messaging-sender-id
-VITE_FIREBASE_APP_ID=1:your-app-id:web:your-hash
-```
-
-### Backend (`server/.env`):
-```env
-PORT=5000
-CLIENT_ORIGIN=http://localhost:5173
-FIREBASE_PROJECT_ID=your-firebase-project-id
-GOOGLE_APPLICATION_CREDENTIALS=./serviceAccountKey.json
-CLOUDINARY_CLOUD_NAME=your-cloudinary-cloud-name
-CLOUDINARY_API_KEY=your-cloudinary-api-key
-CLOUDINARY_API_SECRET=your-cloudinary-api-secret
-```
-
-> **Note on Demo Mode:** When environment variables are omitted or kept as placeholder values, CampusBid runs in **Evaluation Demo Mode** with realistic seed items, in-memory atomic transactions, and 1-click persona switchers (Alex Sharma, Priya Patel, Rohan Verma).
-
----
-
-## 7. Installation & Quick Start
+## 6. Installation & Quick Start
 
 ### 1. Start Backend Server
 ```bash
@@ -198,7 +171,7 @@ npm run build
 
 ---
 
-## 8. Verification & Test Suite
+## 7. Verification & Test Suite
 
 The server includes an automated test suite verifying all 11 critical edge cases:
 
