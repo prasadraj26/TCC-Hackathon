@@ -54,19 +54,18 @@ export default function Footer() {
 
           {/* Hackathon Specs */}
           <div className="footer-col">
-            <h4>System Status</h4>
+            <h4>Bid Now</h4>
             <ul>
-              <li><span>Firebase Admin SDK</span></li>
-              <li><span>Cloud Firestore</span></li>
-              <li><span>Cloudinary Media CDN</span></li>
-              <li><span>Integer Minor Units (Paise)</span></li>
+              <li><span>Bid</span></li>
+              <li><span>Win</span></li>
+              <li><span>Receive</span></li>
             </ul>
           </div>
         </div>
 
         <div className="footer-bottom">
           <div>
-            &copy; {new Date().getFullYear()} CampusBid — College Hackathon Full-Stack Application.
+            &copy; {new Date().getFullYear()} CampusBid .
           </div>
           <div>
             Safe On-Campus Student Trading
