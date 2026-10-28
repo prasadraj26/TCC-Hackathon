@@ -2,8 +2,6 @@
 
 A full-stack, transparent campus auction web application built for college graduating seniors and juniors to trade campus belongings (bicycles, scientific calculators, textbooks, monitors, hostel furniture) fairly and with complete price transparency.
 
----
-
 ## 1. Problem Statement & Solution
 
 **The College Problem:**

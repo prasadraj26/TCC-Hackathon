@@ -73,6 +73,20 @@ export async function checkAndCloseAuctionIfExpired(auction) {
   return auction;
 }
 
+export const SOLD_WINDOW_MS = 10 * 60 * 1000; // 10 minutes (600,000 ms)
+
+export function isAuctionSold(auction) {
+  return Boolean(auction && (auction.status === 'SOLD' || auction.outcome === 'SOLD'));
+}
+
+export function isSoldWithinWindow(auction, now = Date.now()) {
+  if (!isAuctionSold(auction)) return false;
+  const completedAtMs = new Date(auction.completedAt || auction.updatedAt || 0).getTime();
+  if (!completedAtMs || isNaN(completedAtMs)) return false;
+  const elapsed = now - completedAtMs;
+  return elapsed >= 0 && elapsed <= SOLD_WINDOW_MS;
+}
+
 /**
  * List auctions with rich filtering and lazy expiration.
  */
@@ -124,16 +138,22 @@ export async function getAuctions(filters = {}) {
     list = list.filter(a => a.condition === filters.condition);
   }
 
-  if (filters.status && filters.status !== 'ALL') {
-    list = list.filter(a => a.status === filters.status);
-  }
-
   if (filters.sellerUid) {
     list = list.filter(a => a.sellerUid === filters.sellerUid);
   }
 
   if (filters.bidderUid) {
-    list = list.filter(a => a.currentLeaderUid === filters.bidderUid);
+    list = list.filter(a =>
+      a.currentLeaderUid === filters.bidderUid ||
+      (Array.isArray(a.bidderUids) && a.bidderUids.includes(filters.bidderUid))
+    );
+  }
+
+  if (filters.winnerUid) {
+    list = list.filter(a =>
+      a.currentLeaderUid === filters.winnerUid &&
+      (a.status === 'SOLD' || a.status === 'RESERVED' || a.status === 'ENDED_PENDING_SELLER')
+    );
   }
 
   if (filters.minPricePaise) {
@@ -144,22 +164,53 @@ export async function getAuctions(filters = {}) {
     list = list.filter(a => a.currentPricePaise <= Number(filters.maxPricePaise));
   }
 
-  // Sort logic
+  const isPersonalQuery = Boolean(filters.sellerUid || filters.bidderUid || filters.winnerUid);
+
+  // If a specific status was explicitly requested and not ALL, enforce it
+  if (filters.status && filters.status !== 'ALL') {
+    list = list.filter(a => a.status === filters.status);
+  }
+
+  // Tab & Lifecycle Sorting Rules
   const now = Date.now();
-  if (filters.tab === 'CLOSING_SOON') {
-    list = list
-      .filter(a => a.status === 'LIVE' && new Date(a.endsAt).getTime() > now)
-      .sort((a, b) => new Date(a.endsAt) - new Date(b.endsAt));
-  } else if (filters.tab === 'FEATURED') {
-    list.sort((a, b) => (b.bidCount || 0) - (a.bidCount || 0));
-  } else if (filters.tab === 'RECENT') {
-    list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  if (!isPersonalQuery) {
+    // PUBLIC / HOMEPAGE BROWSING RULES:
+    if (filters.tab === 'CLOSING_SOON') {
+      // Closing Soon: active auctions ordered by remaining time
+      list = list
+        .filter(a => a.status === 'LIVE' && new Date(a.endsAt).getTime() > now)
+        .sort((a, b) => new Date(a.endsAt) - new Date(b.endsAt));
+    } else if (filters.tab === 'FEATURED') {
+      // Most Active: active auctions ranked using real bidding activity
+      list = list
+        .filter(a => a.status === 'LIVE')
+        .sort((a, b) => {
+          if ((b.bidCount || 0) !== (a.bidCount || 0)) {
+            return (b.bidCount || 0) - (a.bidCount || 0);
+          }
+          return new Date(b.createdAt) - new Date(a.createdAt);
+        });
+    } else if (filters.tab === 'RECENT') {
+      // Recently Listed: recently created active listings PLUS sold/completed listings that qualify for the 10-minute window
+      list = list
+        .filter(a => a.status === 'LIVE' || isSoldWithinWindow(a, now))
+        .sort((a, b) => {
+          const timeA = new Date(isAuctionSold(a) ? (a.completedAt || a.updatedAt || a.createdAt) : a.createdAt).getTime();
+          const timeB = new Date(isAuctionSold(b) ? (b.completedAt || b.updatedAt || b.createdAt) : b.createdAt).getTime();
+          return timeB - timeA;
+        });
+    } else {
+      // All Listings (ALL or default): all currently active auctions (sold items excluded)
+      list = list
+        .filter(a => a.status === 'LIVE')
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    }
   } else {
-    // Default: LIVE first, then newest
+    // PERSONAL QUERY SORTING (preserves full historical records for seller & buyer history)
     list.sort((a, b) => {
-      if (a.status === 'LIVE' && b.status !== 'LIVE') return -1;
-      if (a.status !== 'LIVE' && b.status === 'LIVE') return 1;
-      return new Date(b.createdAt) - new Date(a.createdAt);
+      const timeA = new Date(a.updatedAt || a.createdAt).getTime();
+      const timeB = new Date(b.updatedAt || b.createdAt).getTime();
+      return timeB - timeA;
     });
   }
 

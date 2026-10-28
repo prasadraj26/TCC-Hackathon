@@ -37,8 +37,8 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState('ALL'); // ALL, CLOSING_SOON, FEATURED, RECENT
   const [conditionFilter, setConditionFilter] = useState('All');
 
-  const loadAuctions = useCallback(async () => {
-    setLoading(true);
+  const loadAuctions = useCallback(async (isSilent = false) => {
+    if (!isSilent) setLoading(true);
     try {
       const data = await fetchAuctions({
         category: activeCategory,
@@ -46,16 +46,20 @@ export default function Home() {
         condition: conditionFilter,
         search: searchQuery
       });
-      setAuctions(data);
+      setAuctions(data || []);
     } catch (err) {
       console.error('Failed to load auctions:', err);
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
   }, [activeCategory, activeTab, conditionFilter, searchQuery]);
 
   useEffect(() => {
     loadAuctions();
+    const interval = setInterval(() => {
+      loadAuctions(true);
+    }, 15000);
+    return () => clearInterval(interval);
   }, [loadAuctions]);
 
   const handleSearchSubmit = (e) => {

@@ -201,11 +201,15 @@ export async function processAutoBidsAfterNewBid(auctionId, currentPricePaise, c
     const auctionRef = db.collection('auctions').doc(auctionId);
     const bidRef = auctionRef.collection('bids').doc(bidId);
 
+    const existingBidderUids = Array.isArray(auction.bidderUids) ? auction.bidderUids : [];
+    const updatedBidderUids = Array.from(new Set([...existingBidderUids, topContender.bidderUid]));
+
     batch.set(bidRef, autoBidDoc);
     batch.update(auctionRef, {
       currentPricePaise: calculatedBid,
       currentLeaderUid: topContender.bidderUid,
       currentLeaderName: topContender.bidderName,
+      bidderUids: updatedBidderUids,
       bidCount: (auction.bidCount || 0) + 1,
       endsAt: newEndsAt,
       updatedAt: new Date(serverNow).toISOString()
@@ -213,6 +217,8 @@ export async function processAutoBidsAfterNewBid(auctionId, currentPricePaise, c
     await batch.commit();
   }
 
+  const existingBidderUids = Array.isArray(auction.bidderUids) ? auction.bidderUids : [];
+  auction.bidderUids = Array.from(new Set([...existingBidderUids, topContender.bidderUid]));
   auction.currentPricePaise = calculatedBid;
   auction.currentLeaderUid = topContender.bidderUid;
   auction.currentLeaderName = topContender.bidderName;

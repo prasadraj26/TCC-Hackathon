@@ -97,11 +97,15 @@ export async function placeBid(auctionId, amountPaise, user) {
 
         // 7. Atomic writes: update auction and append bid
         const previousLeaderUid = auction.currentLeaderUid;
+        const existingBidderUids = Array.isArray(auction.bidderUids) ? auction.bidderUids : [];
+        const updatedBidderUids = Array.from(new Set([...existingBidderUids, bidderUid]));
+
         transaction.set(bidRef, bidData);
         transaction.update(auctionRef, {
           currentPricePaise: amountPaise,
           currentLeaderUid: bidderUid,
           currentLeaderName: bidderName,
+          bidderUids: updatedBidderUids,
           bidCount: (auction.bidCount || 0) + 1,
           endsAt: newEndsAt,
           updatedAt: new Date(serverNow).toISOString()
@@ -184,6 +188,8 @@ export async function placeBid(auctionId, amountPaise, user) {
     };
 
     // Commit atomic changes
+    const existingBidderUids = Array.isArray(auction.bidderUids) ? auction.bidderUids : [];
+    auction.bidderUids = Array.from(new Set([...existingBidderUids, bidderUid]));
     auction.currentPricePaise = amountPaise;
     auction.currentLeaderUid = bidderUid;
     auction.currentLeaderName = bidderName;

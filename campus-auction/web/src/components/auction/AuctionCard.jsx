@@ -44,6 +44,10 @@ export default function AuctionCard({ auction }) {
 
         {isLive ? (
           <CountdownTimer endsAt={auction.endsAt} compact />
+        ) : auction.status === 'SOLD' ? (
+          <div className="auction-countdown-pill" style={{ backgroundColor: '#059669', color: '#ffffff', fontWeight: 700 }}>
+            <span>✓ SOLD</span>
+          </div>
         ) : (
           <div className="auction-countdown-pill" style={{ backgroundColor: '#334155' }}>
             <span>{auction.status.replace(/_/g, ' ')}</span>
@@ -62,9 +66,9 @@ export default function AuctionCard({ auction }) {
         <div className="auction-card-footer">
           <div>
             <div className="price-subtext">
-              {hasBids ? 'Current Bid' : 'Starting Price'}
+              {auction.status === 'SOLD' ? 'Sold For' : hasBids ? 'Current Bid' : 'Starting Price'}
             </div>
-            <div className="current-price-val">
+            <div className="current-price-val" style={{ color: auction.status === 'SOLD' ? '#059669' : undefined }}>
               {formatINR(auction.currentPricePaise)}
             </div>
           </div>

@@ -39,7 +39,11 @@ function App() {
               <Route path="/register" element={<Register />} />
               <Route path="/auctions/:id" element={<AuctionDetails />} />
               <Route path="/create-listing" element={<CreateListing />} />
-              <Route path="/my-auctions" element={<MyAuctions />} />
+              <Route path="/my-auctions" element={<MyAuctions initialTab="listings" />} />
+              <Route path="/my-bids" element={<MyAuctions initialTab="bids" />} />
+              <Route path="/won-items" element={<MyAuctions initialTab="won" />} />
+              <Route path="/auction-analytics" element={<MyAuctions initialTab="analytics" />} />
+              <Route path="/analytics" element={<MyAuctions initialTab="analytics" />} />
               <Route path="/notifications" element={<Notifications />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="*" element={<NotFound />} />

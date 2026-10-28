@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { fetchNotifications } from '../../services/notificationService';
@@ -10,8 +10,11 @@ import {
   LogOut,
   Menu,
   X,
-  Search,
-  BookmarkCheck
+  BookmarkCheck,
+  Package,
+  Trophy,
+  TrendingUp,
+  ChevronDown
 } from 'lucide-react';
 
 export default function Header() {
@@ -20,6 +23,9 @@ export default function Header() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+
+  const dropdownRef = useRef(null);
+  const closeTimeoutRef = useRef(null);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -47,6 +53,53 @@ export default function Header() {
       clearInterval(interval);
     };
   }, [currentUser]);
+
+  // Click outside listener for dropdown
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setUserDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
+    };
+  }, []);
+
+  const handleMouseEnter = () => {
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current);
+      closeTimeoutRef.current = null;
+    }
+    setUserDropdownOpen(true);
+  };
+
+  const handleMouseLeave = () => {
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current);
+    }
+    // 200ms grace period prevents flicker when moving pointer between pill and menu
+    closeTimeoutRef.current = setTimeout(() => {
+      setUserDropdownOpen(false);
+    }, 200);
+  };
+
+  const handleTriggerClick = (e) => {
+    e.stopPropagation();
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current);
+      closeTimeoutRef.current = null;
+    }
+    setUserDropdownOpen(prev => !prev);
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Escape') {
+      setUserDropdownOpen(false);
+    }
+  };
 
   const handleLogout = async () => {
     await logout();
@@ -80,13 +133,19 @@ export default function Header() {
           <NavLink to="/" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} end>
             Explore
           </NavLink>
-          <NavLink to="/my-auctions" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
-            My Auctions
-          </NavLink>
-          <NavLink to="/my-auctions?tab=saved" className="nav-link">
-            <BookmarkCheck size={16} />
-            Saved Searches
-          </NavLink>
+          {currentUser ? (
+            <>
+              <NavLink to="/my-auctions" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+                My Auctions
+              </NavLink>
+              <NavLink to="/my-bids" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+                My Bids
+              </NavLink>
+              <NavLink to="/won-items" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+                Won Items
+              </NavLink>
+            </>
+          ) : null}
         </nav>
 
         {/* Header Right Actions */}
@@ -104,11 +163,22 @@ export default function Header() {
                 {unreadCount > 0 && <span className="notif-badge-count">{unreadCount}</span>}
               </Link>
 
-              {/* User Dropdown */}
-              <div style={{ position: 'relative' }}>
+              {/* User Dropdown with seamless hover, click, and keyboard interaction */}
+              <div
+                className="user-dropdown-container"
+                ref={dropdownRef}
+                onMouseEnter={handleMouseEnter}
+                onMouseLeave={handleMouseLeave}
+                onKeyDown={handleKeyDown}
+                style={{ position: 'relative' }}
+              >
                 <button
+                  type="button"
                   className="user-menu-pill"
-                  onClick={() => setUserDropdownOpen(!userDropdownOpen)}
+                  onClick={handleTriggerClick}
+                  aria-expanded={userDropdownOpen}
+                  aria-haspopup="true"
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}
                 >
                   <div className="user-avatar-circle">
                     {currentUser.displayName ? currentUser.displayName[0].toUpperCase() : 'U'}
@@ -116,59 +186,105 @@ export default function Header() {
                   <span style={{ maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {currentUser.displayName || currentUser.email.split('@')[0]}
                   </span>
+                  <ChevronDown size={14} style={{ opacity: 0.6, transition: 'transform 0.2s', transform: userDropdownOpen ? 'rotate(180deg)' : 'none' }} />
                 </button>
 
                 {userDropdownOpen && (
-                  <div style={{
-                    position: 'absolute',
-                    top: 'calc(100% + 8px)',
-                    right: 0,
-                    width: '220px',
-                    background: 'white',
-                    border: '1px solid var(--color-border)',
-                    borderRadius: 'var(--radius-lg)',
-                    boxShadow: 'var(--shadow-xl)',
-                    padding: '0.5rem',
-                    zIndex: 200
-                  }}>
-                    <div style={{ padding: '0.6rem 0.8rem', borderBottom: '1px solid var(--color-border-subtle)' }}>
-                      <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>{currentUser.displayName}</div>
-                      <div style={{ fontSize: '0.78rem', color: 'var(--color-text-light)' }}>{currentUser.email}</div>
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: '100%',
+                      right: 0,
+                      paddingTop: '6px', // Invisible hover bridge prevents premature mouseleave
+                      zIndex: 200
+                    }}
+                  >
+                    <div style={{
+                      width: '230px',
+                      background: 'white',
+                      border: '1px solid var(--color-border)',
+                      borderRadius: 'var(--radius-lg)',
+                      boxShadow: 'var(--shadow-xl)',
+                      padding: '0.5rem'
+                    }}>
+                      <div style={{ padding: '0.6rem 0.8rem', borderBottom: '1px solid var(--color-border-subtle)' }}>
+                        <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>{currentUser.displayName}</div>
+                        <div style={{ fontSize: '0.78rem', color: 'var(--color-text-light)' }}>{currentUser.email}</div>
+                      </div>
+
+                      <div style={{ padding: '0.3rem 0' }}>
+                        <Link
+                          to="/profile"
+                          className="nav-link"
+                          style={{ padding: '0.55rem 0.8rem', width: '100%', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '0.55rem' }}
+                          onClick={() => setUserDropdownOpen(false)}
+                        >
+                          <User size={16} /> Profile & Settings
+                        </Link>
+                        <Link
+                          to="/my-auctions"
+                          className="nav-link"
+                          style={{ padding: '0.55rem 0.8rem', width: '100%', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '0.55rem' }}
+                          onClick={() => setUserDropdownOpen(false)}
+                        >
+                          <Package size={16} /> My Listings
+                        </Link>
+                        <Link
+                          to="/my-bids"
+                          className="nav-link"
+                          style={{ padding: '0.55rem 0.8rem', width: '100%', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '0.55rem' }}
+                          onClick={() => setUserDropdownOpen(false)}
+                        >
+                          <Gavel size={16} /> My Bids
+                        </Link>
+                        <Link
+                          to="/won-items"
+                          className="nav-link"
+                          style={{ padding: '0.55rem 0.8rem', width: '100%', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '0.55rem' }}
+                          onClick={() => setUserDropdownOpen(false)}
+                        >
+                          <Trophy size={16} /> Won Items
+                        </Link>
+                        <Link
+                          to="/auction-analytics"
+                          className="nav-link"
+                          style={{ padding: '0.55rem 0.8rem', width: '100%', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '0.55rem' }}
+                          onClick={() => setUserDropdownOpen(false)}
+                        >
+                          <TrendingUp size={16} /> Auction Analytics
+                        </Link>
+                        <Link
+                          to="/my-auctions?tab=saved"
+                          className="nav-link"
+                          style={{ padding: '0.55rem 0.8rem', width: '100%', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '0.55rem' }}
+                          onClick={() => setUserDropdownOpen(false)}
+                        >
+                          <BookmarkCheck size={16} /> Saved Searches
+                        </Link>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={handleLogout}
+                        style={{
+                          padding: '0.6rem 0.8rem',
+                          width: '100%',
+                          textAlign: 'left',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.55rem',
+                          color: 'var(--color-danger)',
+                          fontSize: '0.88rem',
+                          fontWeight: 600,
+                          background: 'none',
+                          border: 'none',
+                          borderTop: '1px solid var(--color-border-subtle)',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <LogOut size={16} /> Sign Out
+                      </button>
                     </div>
-                    <Link
-                      to="/profile"
-                      className="nav-link"
-                      style={{ padding: '0.6rem 0.8rem', width: '100%', borderRadius: '6px' }}
-                      onClick={() => setUserDropdownOpen(false)}
-                    >
-                      <User size={16} /> Profile & Stats
-                    </Link>
-                    <Link
-                      to="/my-auctions"
-                      className="nav-link"
-                      style={{ padding: '0.6rem 0.8rem', width: '100%', borderRadius: '6px' }}
-                      onClick={() => setUserDropdownOpen(false)}
-                    >
-                      <Gavel size={16} /> My Listings & Bids
-                    </Link>
-                    <button
-                      onClick={handleLogout}
-                      style={{
-                        padding: '0.6rem 0.8rem',
-                        width: '100%',
-                        textAlign: 'left',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.5rem',
-                        color: 'var(--color-danger)',
-                        fontSize: '0.88rem',
-                        fontWeight: 600,
-                        borderTop: '1px solid var(--color-border-subtle)',
-                        marginTop: '0.3rem'
-                      }}
-                    >
-                      <LogOut size={16} /> Sign Out
-                    </button>
                   </div>
                 )}
               </div>
@@ -207,21 +323,66 @@ export default function Header() {
           padding: '1.25rem',
           display: 'flex',
           flexDirection: 'column',
-          gap: '1rem',
-          boxShadow: 'var(--shadow-lg)'
+          gap: '0.85rem',
+          boxShadow: 'var(--shadow-lg)',
+          zIndex: 150
         }}>
           <Link to="/" onClick={() => setMenuOpen(false)} className="nav-link">
             Explore Auctions
           </Link>
-          <Link to="/my-auctions" onClick={() => setMenuOpen(false)} className="nav-link">
-            My Auctions & Bids
-          </Link>
-          <Link to="/my-auctions?tab=saved" onClick={() => setMenuOpen(false)} className="nav-link">
-            Saved Searches
-          </Link>
-          <Link to="/create-listing" onClick={() => setMenuOpen(false)} className="btn btn-accent btn-sm">
-            + Post Auction
-          </Link>
+          {currentUser ? (
+            <>
+              <Link to="/my-auctions" onClick={() => setMenuOpen(false)} className="nav-link">
+                <Package size={16} /> My Listings
+              </Link>
+              <Link to="/my-bids" onClick={() => setMenuOpen(false)} className="nav-link">
+                <Gavel size={16} /> My Bids
+              </Link>
+              <Link to="/won-items" onClick={() => setMenuOpen(false)} className="nav-link">
+                <Trophy size={16} /> Won Items
+              </Link>
+              <Link to="/auction-analytics" onClick={() => setMenuOpen(false)} className="nav-link">
+                <TrendingUp size={16} /> Auction Analytics
+              </Link>
+              <Link to="/my-auctions?tab=saved" onClick={() => setMenuOpen(false)} className="nav-link">
+                <BookmarkCheck size={16} /> Saved Searches
+              </Link>
+              <Link to="/profile" onClick={() => setMenuOpen(false)} className="nav-link">
+                <User size={16} /> My Profile
+              </Link>
+              <Link to="/create-listing" onClick={() => setMenuOpen(false)} className="btn btn-accent btn-sm" style={{ marginTop: '0.5rem' }}>
+                + Post Auction
+              </Link>
+              <button
+                type="button"
+                onClick={handleLogout}
+                style={{
+                  padding: '0.5rem 0',
+                  textAlign: 'left',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  color: 'var(--color-danger)',
+                  fontSize: '0.9rem',
+                  fontWeight: 600,
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer'
+                }}
+              >
+                <LogOut size={16} /> Sign Out
+              </button>
+            </>
+          ) : (
+            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
+              <Link to="/login" onClick={() => setMenuOpen(false)} className="btn btn-outline btn-sm" style={{ flex: 1, textAlign: 'center' }}>
+                Log In
+              </Link>
+              <Link to="/register" onClick={() => setMenuOpen(false)} className="btn btn-primary btn-sm" style={{ flex: 1, textAlign: 'center' }}>
+                Register
+              </Link>
+            </div>
+          )}
         </div>
       )}
     </header>

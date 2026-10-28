@@ -12,7 +12,8 @@ export async function listAuctions(req, res, next) {
       minPricePaise,
       maxPricePaise,
       sellerUid,
-      bidderUid
+      bidderUid,
+      winnerUid
     } = req.query;
 
     const auctions = await auctionService.getAuctions({
@@ -24,7 +25,8 @@ export async function listAuctions(req, res, next) {
       minPricePaise,
       maxPricePaise,
       sellerUid,
-      bidderUid
+      bidderUid,
+      winnerUid
     });
 
     res.json({ success: true, count: auctions.length, auctions });

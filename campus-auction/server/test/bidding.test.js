@@ -445,6 +445,179 @@ async function runTests() {
     delete mockUsers[attackerUser.uid];
   });
 
+  await test('14. Homepage Tabs & Sold-Item 10-Minute Visibility Rule', async () => {
+    mockAuctions.length = 0;
+    const now = Date.now();
+
+    // 1. Active live auction created 5 minutes ago
+    const activeOne = {
+      id: 'active-auc-1',
+      sellerUid: 'seller_a',
+      title: 'Lab Stool',
+      category: 'Furniture',
+      condition: 'Good',
+      status: 'LIVE',
+      startingPricePaise: 20000,
+      currentPricePaise: 20000,
+      bidCount: 1,
+      createdAt: new Date(now - 5 * 60 * 1000).toISOString(),
+      endsAt: new Date(now + 60 * 60 * 1000).toISOString()
+    };
+
+    // 2. Active live auction with high activity created 1 minute ago
+    const activeTwo = {
+      id: 'active-auc-2',
+      sellerUid: 'seller_b',
+      title: 'Mountain Bike',
+      category: 'Cycles',
+      condition: 'Like New',
+      status: 'LIVE',
+      startingPricePaise: 250000,
+      currentPricePaise: 300000,
+      bidCount: 5,
+      createdAt: new Date(now - 1 * 60 * 1000).toISOString(),
+      endsAt: new Date(now + 10 * 60 * 1000).toISOString()
+    };
+
+    // 3. Genuinely sold auction completed 4 minutes ago (within 10 min window)
+    const soldRecent = {
+      id: 'sold-recent-3',
+      sellerUid: 'seller_a',
+      currentLeaderUid: 'buyer_x',
+      title: 'Engineering Mechanics Book',
+      category: 'Books',
+      condition: 'Good',
+      status: 'SOLD',
+      outcome: 'SOLD',
+      startingPricePaise: 30000,
+      currentPricePaise: 40000,
+      bidCount: 3,
+      createdAt: new Date(now - 60 * 60 * 1000).toISOString(),
+      completedAt: new Date(now - 4 * 60 * 1000).toISOString(),
+      updatedAt: new Date(now - 4 * 60 * 1000).toISOString(),
+      endsAt: new Date(now - 50 * 60 * 1000).toISOString()
+    };
+
+    // 4. Genuinely sold auction completed 15 minutes ago (outside 10 min window)
+    const soldExpired = {
+      id: 'sold-expired-4',
+      sellerUid: 'seller_c',
+      currentLeaderUid: 'buyer_y',
+      title: 'Graphing Calculator',
+      category: 'Calculators',
+      condition: 'Like New',
+      status: 'SOLD',
+      outcome: 'SOLD',
+      startingPricePaise: 80000,
+      currentPricePaise: 100000,
+      bidCount: 4,
+      createdAt: new Date(now - 120 * 60 * 1000).toISOString(),
+      completedAt: new Date(now - 15 * 60 * 1000).toISOString(),
+      updatedAt: new Date(now - 15 * 60 * 1000).toISOString(),
+      endsAt: new Date(now - 100 * 60 * 1000).toISOString()
+    };
+
+    // 5. Expired unsold auction
+    const unsoldItem = {
+      id: 'unsold-5',
+      sellerUid: 'seller_d',
+      title: 'Old Pillow',
+      category: 'Other',
+      condition: 'Poor',
+      status: 'UNSOLD',
+      outcome: 'UNSOLD',
+      startingPricePaise: 10000,
+      currentPricePaise: 10000,
+      bidCount: 0,
+      createdAt: new Date(now - 90 * 60 * 1000).toISOString(),
+      endsAt: new Date(now - 30 * 60 * 1000).toISOString()
+    };
+
+    mockAuctions.push(activeOne, activeTwo, soldRecent, soldExpired, unsoldItem);
+
+    // TAB 1: ALL LISTINGS -> only active auctions (sold items and unsold items are excluded)
+    const allTab = await auctionService.getAuctions({ tab: 'ALL' });
+    assert.strictEqual(allTab.length, 2, 'All Listings tab must only include active auctions');
+    assert(allTab.some(a => a.id === 'active-auc-1'));
+    assert(allTab.some(a => a.id === 'active-auc-2'));
+    assert(!allTab.some(a => a.id === 'sold-recent-3'), 'Sold item must not appear in All Listings');
+    assert(!allTab.some(a => a.id === 'sold-expired-4'), 'Sold item must not appear in All Listings');
+    assert(!allTab.some(a => a.id === 'unsold-5'), 'Unsold item must not appear in All Listings');
+
+    // TAB 2: CLOSING SOON -> active auctions ordered by remaining time
+    const closingSoonTab = await auctionService.getAuctions({ tab: 'CLOSING_SOON' });
+    assert.strictEqual(closingSoonTab.length, 2);
+    assert.strictEqual(closingSoonTab[0].id, 'active-auc-2', 'active-auc-2 ends in 10m so it must be first');
+    assert.strictEqual(closingSoonTab[1].id, 'active-auc-1', 'active-auc-1 ends in 60m so it must be second');
+    assert(!closingSoonTab.some(a => a.id === 'sold-recent-3'), 'Sold item must not appear in Closing Soon');
+
+    // TAB 3: MOST ACTIVE -> active auctions ranked by bid count
+    const mostActiveTab = await auctionService.getAuctions({ tab: 'FEATURED' });
+    assert.strictEqual(mostActiveTab.length, 2);
+    assert.strictEqual(mostActiveTab[0].id, 'active-auc-2', 'active-auc-2 has 5 bids so it must be first');
+    assert.strictEqual(mostActiveTab[1].id, 'active-auc-1', 'active-auc-1 has 1 bid so it must be second');
+    assert(!mostActiveTab.some(a => a.id === 'sold-recent-3'), 'Sold item must not appear in Most Active');
+
+    // TAB 4: RECENTLY LISTED -> active listings PLUS sold item completed within 10 minutes
+    const recentTab = await auctionService.getAuctions({ tab: 'RECENT' });
+    assert.strictEqual(recentTab.length, 3, 'Recently Listed must include 2 active items + 1 item sold within 10m');
+    assert(recentTab.some(a => a.id === 'active-auc-1'));
+    assert(recentTab.some(a => a.id === 'active-auc-2'));
+    assert(recentTab.some(a => a.id === 'sold-recent-3'), 'Item sold 4m ago must appear in Recently Listed');
+    assert(!recentTab.some(a => a.id === 'sold-expired-4'), 'Item sold 15m ago must be excluded from Recently Listed');
+    assert(!recentTab.some(a => a.id === 'unsold-5'), 'Unsold item must never appear as sold in Recently Listed');
+
+    // Simulate 11 minutes passing since sold-recent-3 completed
+    soldRecent.completedAt = new Date(Date.now() - 11 * 60 * 1000).toISOString();
+    const recentTabAfterExpiry = await auctionService.getAuctions({ tab: 'RECENT' });
+    assert.strictEqual(recentTabAfterExpiry.length, 2, 'Sold item must disappear once 10 minute window passes');
+    assert(!recentTabAfterExpiry.some(a => a.id === 'sold-recent-3'));
+
+    // Clean up
+    mockAuctions.length = 0;
+  });
+
+  await test('15. Personal Auction History and Winner Access Preservation', async () => {
+    mockAuctions.length = 0;
+    const now = Date.now();
+
+    const sellerOldAuction = {
+      id: 'seller-sold-forever',
+      sellerUid: 'seller_sam',
+      currentLeaderUid: 'winning_student',
+      title: 'Historical Sold Desk',
+      category: 'Furniture',
+      condition: 'Good',
+      status: 'SOLD',
+      outcome: 'SOLD',
+      startingPricePaise: 50000,
+      currentPricePaise: 75000,
+      bidCount: 4,
+      createdAt: new Date(now - 7 * 24 * 3600 * 1000).toISOString(),
+      completedAt: new Date(now - 5 * 24 * 3600 * 1000).toISOString(), // 5 days ago
+      endsAt: new Date(now - 6 * 24 * 3600 * 1000).toISOString()
+    };
+
+    mockAuctions.push(sellerOldAuction);
+
+    // 1. Public homepage does NOT show it (since it was completed 5 days ago)
+    const publicRecent = await auctionService.getAuctions({ tab: 'RECENT' });
+    assert.strictEqual(publicRecent.length, 0, 'Public homepage must not show 5-day old sold item');
+
+    // 2. Seller can access it in their full personal auction history
+    const sellerListings = await auctionService.getAuctions({ sellerUid: 'seller_sam' });
+    assert.strictEqual(sellerListings.length, 1, 'Seller must have perpetual access to their sold auction history');
+    assert.strictEqual(sellerListings[0].id, 'seller-sold-forever');
+
+    // 3. Winning buyer can access it in their personal Won Items history
+    const wonItems = await auctionService.getAuctions({ winnerUid: 'winning_student' });
+    assert.strictEqual(wonItems.length, 1, 'Winning buyer must have perpetual access to their won items purchase history');
+    assert.strictEqual(wonItems[0].id, 'seller-sold-forever');
+
+    // Clean up
+    mockAuctions.length = 0;
+  });
+
   console.log('\n======================================================');
   console.log(` TEST SUMMARY: ${passedCount} PASSED, ${failedCount} FAILED`);
   console.log('======================================================\n');
