@@ -1,0 +1,21 @@
+{
+  "name": "campus-auction-workspace",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Campus Auction (CampusBid) Full-Stack Monorepo",
+  "scripts": {
+    "start:server": "npm --prefix server start",
+    "dev:server": "npm --prefix server run dev",
+    "dev:web": "npm --prefix web run dev",
+    "build:web": "npm --prefix web run build",
+    "test": "npm --prefix server test"
+  },
+  "keywords": [
+    "campus",
+    "auction",
+    "firebase",
+    "express",
+    "react",
+    "vite"
+  ]
+}
