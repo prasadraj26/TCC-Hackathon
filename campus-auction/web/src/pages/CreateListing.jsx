@@ -4,11 +4,15 @@ import { useAuth } from '../context/AuthContext';
 import { createAuction } from '../services/auctionService';
 import { uploadImage } from '../services/uploadService';
 import { formatINR, toPaise } from '../utils/formatters';
+import SmartPriceAdvisor from '../components/auction/SmartPriceAdvisor';
 import {
   Upload,
   Clock,
   MapPin,
-  X
+  X,
+  TrendingDown,
+  TrendingUp,
+  CheckCircle2,
 } from 'lucide-react';
 
 const CATEGORIES = ['Cycles', 'Books', 'Calculators', 'Electronics', 'Furniture', 'Other'];
@@ -30,6 +34,49 @@ export default function CreateListing() {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+
+  // Price advisory state from SmartPriceAdvisor
+  const [lastEstimate, setLastEstimate] = useState(null);
+
+  // Subtle price comparison detection between entered price and estimated range
+  const priceComparison = (() => {
+    if (!lastEstimate || !startingPriceRupees) return null;
+    const price = Number(startingPriceRupees);
+    if (isNaN(price) || price <= 0) return null;
+
+    const { loRupees, hiRupees } = lastEstimate;
+    if (price > hiRupees) {
+      return {
+        type: 'above',
+        message: 'Your starting price is above the estimated range.',
+        hint: `Estimated fair range is ₹${loRupees.toLocaleString('en-IN')} – ₹${hiRupees.toLocaleString('en-IN')}. This estimate is advisory, not a guaranteed sale price.`,
+        bg: '#fffbeb',
+        border: '#fde68a',
+        color: '#92400e',
+        icon: <TrendingUp size={14} style={{ flexShrink: 0, marginTop: '2px' }} />,
+      };
+    } else if (price < loRupees) {
+      return {
+        type: 'below',
+        message: 'Your starting price is below the estimated range.',
+        hint: `Estimated fair range is ₹${loRupees.toLocaleString('en-IN')} – ₹${hiRupees.toLocaleString('en-IN')}. Lower starting prices may attract more initial bids. This estimate is advisory, not a guaranteed sale price.`,
+        bg: '#eff6ff',
+        border: '#bfdbfe',
+        color: '#1e40af',
+        icon: <TrendingDown size={14} style={{ flexShrink: 0, marginTop: '2px' }} />,
+      };
+    } else {
+      return {
+        type: 'within',
+        message: 'Your starting price is within the estimated range.',
+        hint: `Estimated fair range is ₹${loRupees.toLocaleString('en-IN')} – ₹${hiRupees.toLocaleString('en-IN')}. This estimate is advisory.`,
+        bg: '#f0fdf4',
+        border: '#bbf7d0',
+        color: '#166534',
+        icon: <CheckCircle2 size={14} style={{ flexShrink: 0, marginTop: '2px' }} />,
+      };
+    }
+  })();
 
   const handleImageFileChange = async (e) => {
     const file = e.target.files[0];
@@ -152,6 +199,18 @@ export default function CreateListing() {
               </div>
             </div>
 
+            {/* ── Smart Price Advisor (above the price row) ───────────── */}
+            <SmartPriceAdvisor
+              title={title}
+              category={category}
+              condition={condition}
+              getAuthHeaders={getAuthHeaders}
+              onUseSuggested={(rupees) => {
+                setStartingPriceRupees(String(rupees));
+              }}
+              onEstimate={setLastEstimate}
+            />
+
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
               <div className="form-group">
                 <label className="form-label">Starting Price (INR) *</label>
@@ -169,6 +228,28 @@ export default function CreateListing() {
                     required
                   />
                 </div>
+                {/* Subtle price comparison advisory */}
+                {priceComparison && (
+                  <div style={{
+                    marginTop: '0.45rem',
+                    fontSize: '0.78rem',
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: '0.45rem',
+                    padding: '0.45rem 0.65rem',
+                    borderRadius: 'var(--radius-sm)',
+                    background: priceComparison.bg,
+                    border: `1px solid ${priceComparison.border}`,
+                    color: priceComparison.color,
+                    lineHeight: 1.4,
+                  }}>
+                    {priceComparison.icon}
+                    <div>
+                      <div style={{ fontWeight: 700 }}>{priceComparison.message}</div>
+                      <div style={{ fontSize: '0.72rem', opacity: 0.9 }}>{priceComparison.hint}</div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="form-group">

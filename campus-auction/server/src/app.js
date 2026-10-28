@@ -9,6 +9,7 @@ import autoBidRoutes from './routes/autoBids.js';
 import uploadRoutes from './routes/uploads.js';
 import notificationRoutes from './routes/notifications.js';
 import userRoutes from './routes/users.js';
+import pricingRoutes from './routes/pricing.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { getAuctions } from './services/auctionService.js';
 
@@ -73,6 +74,7 @@ app.use('/api/auctions/:id/auto-bids', autoBidRoutes);
 app.use('/api/uploads', uploadRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/pricing', pricingRoutes);
 
 // Error Handling
 app.use(errorHandler);
