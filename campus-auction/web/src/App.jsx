@@ -24,6 +24,7 @@ import CreateListing from './pages/CreateListing';
 import MyAuctions from './pages/MyAuctions';
 import Notifications from './pages/Notifications';
 import Profile from './pages/Profile';
+import Assistant from './pages/Assistant';
 import NotFound from './pages/NotFound';
 
 function App() {
@@ -36,6 +37,7 @@ function App() {
           <main className="main-content">
             <Routes>
               <Route path="/" element={<Home />} />
+              <Route path="/assistant" element={<Assistant />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/auctions/:id" element={<AuctionDetails />} />

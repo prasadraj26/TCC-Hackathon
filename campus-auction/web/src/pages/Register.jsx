@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Gavel } from 'lucide-react';
+import { isKonguEmail, AUTH_ERROR_MESSAGES, normalizeEmail } from '../utils/authValidators';
 
 export default function Register() {
   const { register } = useAuth();
@@ -21,10 +22,17 @@ export default function Register() {
       setError('Please provide your actual full name.');
       return;
     }
+
+    const normalized = normalizeEmail(email);
+    if (!isKonguEmail(normalized)) {
+      setError(AUTH_ERROR_MESSAGES.REGISTRATION_DOMAIN_DISALLOWED);
+      return;
+    }
+
     setLoading(true);
     setError('');
     try {
-      await register(email, password, displayName.trim(), {
+      await register(normalized, password, displayName.trim(), {
         campusYear: campusYear.trim(),
         hostel: hostel.trim()
       });
@@ -74,15 +82,16 @@ export default function Register() {
             </div>
 
             <div className="form-group">
-              <label className="form-label">Campus Email *</label>
+              <label className="form-label">Kongu College Email *</label>
               <input
                 type="email"
                 className="form-input"
-                placeholder="name@campus.edu"
+                placeholder="e.g. prasadrajv.23aid@kongu.edu"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
               />
+              <span className="form-hint">Must end in @kongu.edu. Other email domains are not accepted.</span>
             </div>
 
             <div className="form-group">
@@ -111,11 +120,11 @@ export default function Register() {
               </div>
 
               <div className="form-group">
-                <label className="form-label">Hostel & Room</label>
+                <label className="form-label">Hostel or Class</label>
                 <input
                   type="text"
                   className="form-input"
-                  placeholder="e.g. Hostel 3, R112"
+                  placeholder="e.g. Hostel 3, AAB001"
                   value={hostel}
                   onChange={(e) => setHostel(e.target.value)}
                 />

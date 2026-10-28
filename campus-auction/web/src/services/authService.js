@@ -7,6 +7,7 @@ import {
 } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db, isFirebaseConfigured } from './firebase';
+import { isKonguEmail, AUTH_ERROR_MESSAGES, normalizeEmail } from '../utils/authValidators';
 
 const SESSION_STORAGE_KEY = 'campusbid_session_user';
 
@@ -31,8 +32,20 @@ export function setStoredUser(user) {
 }
 
 export async function loginWithEmail(email, password) {
+  const normalizedEmail = normalizeEmail(email);
+  if (!isKonguEmail(normalizedEmail)) {
+    throw new Error(AUTH_ERROR_MESSAGES.LOGIN_DOMAIN_DISALLOWED);
+  }
+
   if (isFirebaseConfigured && auth) {
-    const cred = await signInWithEmailAndPassword(auth, email, password);
+    const cred = await signInWithEmailAndPassword(auth, normalizedEmail, password);
+    // Double-check verified account email domain post-sign-in
+    if (!isKonguEmail(cred.user.email)) {
+      await signOut(auth);
+      setStoredUser(null);
+      throw new Error(AUTH_ERROR_MESSAGES.LOGIN_DOMAIN_DISALLOWED);
+    }
+
     const profile = await fetchUserProfile(cred.user.uid);
     const sessionUser = {
       uid: cred.user.uid,
@@ -48,14 +61,14 @@ export async function loginWithEmail(email, password) {
   }
 
   // Local authentication session when Firebase is not connected
-  if (!email || !password) {
+  if (!normalizedEmail || !password) {
     throw new Error('Email and password are required.');
   }
 
   const stored = getStoredUser();
   const user = {
-    uid: stored?.uid || `user_${email.replace(/[^a-zA-Z0-9]/g, '_')}`,
-    email,
+    uid: stored?.uid || `user_${normalizedEmail.replace(/[^a-zA-Z0-9]/g, '_')}`,
+    email: normalizedEmail,
     name: stored?.name || null,
     displayName: stored?.name || null,
     campusYear: stored?.campusYear || '',
@@ -67,10 +80,15 @@ export async function loginWithEmail(email, password) {
 }
 
 export async function registerWithEmail(email, password, displayName, details = {}) {
+  const normalizedEmail = normalizeEmail(email);
+  if (!isKonguEmail(normalizedEmail)) {
+    throw new Error(AUTH_ERROR_MESSAGES.REGISTRATION_DOMAIN_DISALLOWED);
+  }
+
   const trimmedName = (displayName || '').trim();
 
   if (isFirebaseConfigured && auth) {
-    const cred = await createUserWithEmailAndPassword(auth, email, password);
+    const cred = await createUserWithEmailAndPassword(auth, normalizedEmail, password);
     if (trimmedName) {
       await updateProfile(cred.user, { displayName: trimmedName });
     }
@@ -102,13 +120,13 @@ export async function registerWithEmail(email, password, displayName, details = 
   }
 
   // Local registration session when Firebase is not connected
-  if (!email || !password) {
+  if (!normalizedEmail || !password) {
     throw new Error('Email and password are required.');
   }
 
   const user = {
-    uid: `user_${email.replace(/[^a-zA-Z0-9]/g, '_')}`,
-    email,
+    uid: `user_${normalizedEmail.replace(/[^a-zA-Z0-9]/g, '_')}`,
+    email: normalizedEmail,
     name: trimmedName || null,
     displayName: trimmedName || null,
     campusYear: details.campusYear ? details.campusYear.trim() : '',
@@ -208,6 +226,17 @@ export function subscribeToAuth(callback) {
         return;
       }
 
+      // Security check: If authenticated account domain is not @kongu.edu, sign out immediately
+      if (!isKonguEmail(firebaseUser.email)) {
+        console.warn('[authService] Unauthorized domain account detected in active session. Signing out.');
+        try {
+          await signOut(auth);
+        } catch (_e) {}
+        setStoredUser(null);
+        callback(null);
+        return;
+      }
+
       // Resolve Firestore user profile
       let profile = null;
       if (db) {
@@ -250,6 +279,11 @@ export function subscribeToAuth(callback) {
   }
 
   const activeUser = getStoredUser();
+  if (activeUser && !isKonguEmail(activeUser.email)) {
+    setStoredUser(null);
+    callback(null);
+    return () => {};
+  }
   callback(activeUser);
   return () => {};
 }

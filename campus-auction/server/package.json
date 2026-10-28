@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node src/app.js",
     "dev": "nodemon src/app.js",
-    "test": "node test/bidding.test.js && node test/pricing.test.js"
+    "test": "node test/bidding.test.js && node test/pricing.test.js && node test/authDomain.test.js && node test/assistant.test.js"
   },
   "keywords": [
     "campus-auction",

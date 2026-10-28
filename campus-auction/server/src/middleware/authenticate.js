@@ -1,6 +1,7 @@
 import { auth, isFirebaseConfigured } from '../config/firebaseAdmin.js';
 import { mockUsers } from '../utils/mockStore.js';
 import { getUserProfile, formatDisplayName } from '../services/userService.js';
+import { isKonguEmail, AUTH_ERROR_MESSAGES } from '../utils/authValidators.js';
 
 export async function authenticate(req, res, next) {
   try {
@@ -24,11 +25,22 @@ export async function authenticate(req, res, next) {
     // Never trust client-provided x-demo-user-id when Firebase is configured.
     if (isFirebaseConfigured && auth && token && !token.startsWith('demo_')) {
       const decodedToken = await auth.verifyIdToken(token);
+      const verifiedEmail = decodedToken.email;
+
+      // Restrict access strictly to verified accounts with @kongu.edu domain
+      if (!verifiedEmail || !isKonguEmail(verifiedEmail)) {
+        return res.status(403).json({
+          success: false,
+          error: AUTH_ERROR_MESSAGES.BACKEND_FORBIDDEN_DOMAIN
+        });
+      }
+
       const profile = await getUserProfile(decodedToken.uid);
 
       req.user = {
         uid: decodedToken.uid,
-        email: decodedToken.email || profile?.email || null,
+        email: verifiedEmail,
+        emailVerified: Boolean(decodedToken.email_verified),
         name: profile?.name || decodedToken.name || null,
         displayName: profile?.name ? formatDisplayName(profile.name, decodedToken.uid) : (decodedToken.name || null),
         campusYear: profile?.campusYear || '',
@@ -50,10 +62,20 @@ export async function authenticate(req, res, next) {
 
       const user = mockUsers[demoUid] || null;
       const profile = await getUserProfile(demoUid);
+      const userEmail = user?.email || profile?.email || `${demoUid}@kongu.edu`;
+
+      // Enforce @kongu.edu domain verification in test/mock mode
+      if (!isKonguEmail(userEmail)) {
+        return res.status(403).json({
+          success: false,
+          error: AUTH_ERROR_MESSAGES.BACKEND_FORBIDDEN_DOMAIN
+        });
+      }
 
       req.user = {
         uid: demoUid,
-        email: user?.email || profile?.email || `${demoUid}@campus.edu`,
+        email: userEmail,
+        emailVerified: false,
         name: profile?.name || user?.name || null,
         displayName: profile?.name ? formatDisplayName(profile.name, demoUid) : null,
         campusYear: profile?.campusYear || user?.campusYear || '',

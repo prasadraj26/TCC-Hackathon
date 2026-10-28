@@ -10,6 +10,7 @@ import uploadRoutes from './routes/uploads.js';
 import notificationRoutes from './routes/notifications.js';
 import userRoutes from './routes/users.js';
 import pricingRoutes from './routes/pricing.js';
+import assistantRoutes from './routes/assistant.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { getAuctions } from './services/auctionService.js';
 
@@ -75,6 +76,7 @@ app.use('/api/uploads', uploadRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/pricing', pricingRoutes);
+app.use('/api/assistant', assistantRoutes);
 
 // Error Handling
 app.use(errorHandler);

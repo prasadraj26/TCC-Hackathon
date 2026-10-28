@@ -15,7 +15,8 @@ import {
   Trophy,
   TrendingUp,
   ChevronDown,
-  Layers
+  Layers,
+  Sparkles
 } from 'lucide-react';
 
 export default function Header() {
@@ -133,6 +134,10 @@ export default function Header() {
         <nav className="nav-links">
           <NavLink to="/" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} end>
             Explore
+          </NavLink>
+          <NavLink to="/assistant" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+            <Sparkles size={14} color="var(--color-accent)" />
+            <span>AI Assistant</span>
           </NavLink>
           {currentUser ? (
             <>
@@ -317,6 +322,9 @@ export default function Header() {
         <div className="mobile-drawer" role="dialog" aria-label="Navigation menu">
           <Link to="/" onClick={() => setMenuOpen(false)} className="drawer-link">
             <Layers size={18} /> Explore Auctions
+          </Link>
+          <Link to="/assistant" onClick={() => setMenuOpen(false)} className="drawer-link">
+            <Sparkles size={18} color="var(--color-accent)" /> AI Assistant
           </Link>
           {currentUser ? (
             <>
