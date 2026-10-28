@@ -8,6 +8,7 @@ import './styles/layout.css';
 import './styles/components.css';
 import './styles/auction.css';
 import './styles/pages.css';
+import './styles/responsive.css';
 
 // Components
 import Header from './components/common/Header';

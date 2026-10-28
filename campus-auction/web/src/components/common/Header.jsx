@@ -14,7 +14,8 @@ import {
   Package,
   Trophy,
   TrendingUp,
-  ChevronDown
+  ChevronDown,
+  Layers
 } from 'lucide-react';
 
 export default function Header() {
@@ -313,72 +314,42 @@ export default function Header() {
 
       {/* Mobile Drawer Menu */}
       {menuOpen && (
-        <div style={{
-          position: 'absolute',
-          top: 'var(--header-height)',
-          left: 0,
-          right: 0,
-          background: 'white',
-          borderBottom: '1px solid var(--color-border)',
-          padding: '1.25rem',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '0.85rem',
-          boxShadow: 'var(--shadow-lg)',
-          zIndex: 150
-        }}>
-          <Link to="/" onClick={() => setMenuOpen(false)} className="nav-link">
-            Explore Auctions
+        <div className="mobile-drawer" role="dialog" aria-label="Navigation menu">
+          <Link to="/" onClick={() => setMenuOpen(false)} className="drawer-link">
+            <Layers size={18} /> Explore Auctions
           </Link>
           {currentUser ? (
             <>
-              <Link to="/my-auctions" onClick={() => setMenuOpen(false)} className="nav-link">
-                <Package size={16} /> My Listings
+              <div className="drawer-divider" />
+              <Link to="/my-auctions" onClick={() => setMenuOpen(false)} className="drawer-link">
+                <Package size={18} /> My Listings
               </Link>
-              <Link to="/my-bids" onClick={() => setMenuOpen(false)} className="nav-link">
-                <Gavel size={16} /> My Bids
+              <Link to="/my-bids" onClick={() => setMenuOpen(false)} className="drawer-link">
+                <Gavel size={18} /> My Bids
               </Link>
-              <Link to="/won-items" onClick={() => setMenuOpen(false)} className="nav-link">
-                <Trophy size={16} /> Won Items
+              <Link to="/won-items" onClick={() => setMenuOpen(false)} className="drawer-link">
+                <Trophy size={18} /> Won Items
               </Link>
-              <Link to="/auction-analytics" onClick={() => setMenuOpen(false)} className="nav-link">
-                <TrendingUp size={16} /> Auction Analytics
+              <Link to="/auction-analytics" onClick={() => setMenuOpen(false)} className="drawer-link">
+                <TrendingUp size={18} /> Auction Analytics
               </Link>
-              <Link to="/my-auctions?tab=saved" onClick={() => setMenuOpen(false)} className="nav-link">
-                <BookmarkCheck size={16} /> Saved Searches
+              <Link to="/profile" onClick={() => setMenuOpen(false)} className="drawer-link">
+                <User size={18} /> My Profile
               </Link>
-              <Link to="/profile" onClick={() => setMenuOpen(false)} className="nav-link">
-                <User size={16} /> My Profile
+              <div className="drawer-divider" />
+              <Link to="/create-listing" onClick={() => setMenuOpen(false)} className="btn btn-accent" style={{ justifyContent: 'center', minHeight: '44px' }}>
+                <PlusCircle size={18} /> Post an Auction
               </Link>
-              <Link to="/create-listing" onClick={() => setMenuOpen(false)} className="btn btn-accent btn-sm" style={{ marginTop: '0.5rem' }}>
-                + Post Auction
-              </Link>
-              <button
-                type="button"
-                onClick={handleLogout}
-                style={{
-                  padding: '0.5rem 0',
-                  textAlign: 'left',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                  color: 'var(--color-danger)',
-                  fontSize: '0.9rem',
-                  fontWeight: 600,
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer'
-                }}
-              >
-                <LogOut size={16} /> Sign Out
+              <button type="button" onClick={handleLogout} className="drawer-signout">
+                <LogOut size={18} /> Sign Out
               </button>
             </>
           ) : (
-            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
-              <Link to="/login" onClick={() => setMenuOpen(false)} className="btn btn-outline btn-sm" style={{ flex: 1, textAlign: 'center' }}>
+            <div className="drawer-auth-row">
+              <Link to="/login" onClick={() => setMenuOpen(false)} className="btn btn-outline">
                 Log In
               </Link>
-              <Link to="/register" onClick={() => setMenuOpen(false)} className="btn btn-primary btn-sm" style={{ flex: 1, textAlign: 'center' }}>
+              <Link to="/register" onClick={() => setMenuOpen(false)} className="btn btn-primary">
                 Register
               </Link>
             </div>

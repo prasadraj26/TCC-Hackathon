@@ -9,6 +9,8 @@
   height: var(--header-height);
   display: flex;
   align-items: center;
+  /* Needed so the mobile drawer (position:fixed) has a z-index stacking context */
+  isolation: isolate;
 }
 
 .header-inner {
@@ -227,24 +229,11 @@
   color: var(--color-text-main);
 }
 
-@media (max-width: 900px) {
+@media (max-width: 768px) {
   .nav-links {
     display: none;
   }
   .mobile-nav-toggle {
-    display: block;
-  }
-  .footer-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
-@media (max-width: 600px) {
-  .footer-grid {
-    grid-template-columns: 1fr;
-    gap: 1.5rem;
-  }
-  .header-actions .btn-create-nav span {
-    display: none;
+    display: flex;
   }
 }

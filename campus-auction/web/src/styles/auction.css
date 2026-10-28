@@ -345,12 +345,4 @@
   background-color: #f0fdf4;
 }
 
-@media (max-width: 900px) {
-  .auction-detail-grid {
-    grid-template-columns: 1fr;
-    gap: 1.5rem;
-  }
-  .bid-panel-card {
-    position: static;
-  }
-}
+/* Responsive overrides are in styles/responsive.css */
