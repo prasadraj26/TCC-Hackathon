@@ -219,7 +219,7 @@ export async function createAuction(auctionData, user) {
     category,
     condition,
     description,
-    images: images.length > 0 ? images : ['https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?auto=format&fit=crop&w=800&q=80'],
+    images: Array.isArray(images) ? images : [],
     startingPricePaise: Number(startingPricePaise),
     minIncrementPaise: Number(minIncrementPaise),
     currentPricePaise: Number(startingPricePaise),

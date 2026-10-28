@@ -7,23 +7,12 @@ import { formatINR, toPaise } from '../utils/formatters';
 import {
   Upload,
   Clock,
-  Sparkles,
   MapPin,
   X
 } from 'lucide-react';
 
 const CATEGORIES = ['Cycles', 'Books', 'Calculators', 'Electronics', 'Furniture', 'Other'];
 const CONDITIONS = ['Like New', 'Good', 'Fair', 'New', 'Poor'];
-
-// Sample photos for quick fill in hackathons
-const SAMPLE_PHOTOS = {
-  Cycles: 'https://images.unsplash.com/photo-1485965120184-e220f721d03e?auto=format&fit=crop&w=800&q=80',
-  Calculators: 'https://images.unsplash.com/photo-1594980596870-8aa52a78d8cd?auto=format&fit=crop&w=800&q=80',
-  Books: 'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?auto=format&fit=crop&w=800&q=80',
-  Electronics: 'https://images.unsplash.com/photo-1587829741301-dc798b83add3?auto=format&fit=crop&w=800&q=80',
-  Furniture: 'https://images.unsplash.com/photo-1580481077195-c3a82104536b?auto=format&fit=crop&w=800&q=80',
-  Other: 'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?auto=format&fit=crop&w=800&q=80'
-};
 
 export default function CreateListing() {
   const { currentUser, getAuthHeaders } = useAuth();
@@ -36,7 +25,7 @@ export default function CreateListing() {
   const [startingPriceRupees, setStartingPriceRupees] = useState('');
   const [minIncrementRupees, setMinIncrementRupees] = useState('50');
   const [endsAt, setEndsAt] = useState(() => new Date(Date.now() + 24 * 3600 * 1000).toISOString().slice(0, 16));
-  const [location, setLocation] = useState('Hostel 4 Ground Floor');
+  const [location, setLocation] = useState('');
   const [images, setImages] = useState([]);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -57,11 +46,6 @@ export default function CreateListing() {
     } finally {
       setUploadingImage(false);
     }
-  };
-
-  const handleUseSamplePhoto = () => {
-    const sample = SAMPLE_PHOTOS[category] || SAMPLE_PHOTOS.Other;
-    setImages(prev => [...prev, sample]);
   };
 
   const handleRemoveImage = (index) => {
@@ -102,7 +86,7 @@ export default function CreateListing() {
         category,
         condition,
         description,
-        images: images.length > 0 ? images : [SAMPLE_PHOTOS[category]],
+        images: images,
         startingPricePaise: toPaise(startingRupees),
         minIncrementPaise: toPaise(incrementRupees),
         endsAt: new Date(endsAt).toISOString(),
@@ -245,16 +229,8 @@ export default function CreateListing() {
 
             {/* Photos Upload & Preview */}
             <div className="form-group">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
-                <label className="form-label" style={{ margin: 0 }}>Item Photos</label>
-                <button
-                  type="button"
-                  className="btn btn-outline btn-sm"
-                  style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem' }}
-                  onClick={handleUseSamplePhoto}
-                >
-                  <Sparkles size={12} /> Auto-fill Sample Image
-                </button>
+              <div style={{ marginBottom: '0.4rem' }}>
+                <label className="form-label" style={{ margin: 0 }}>Item Photos (Optional)</label>
               </div>
 
               <label className="photo-uploader">
@@ -310,10 +286,27 @@ export default function CreateListing() {
               </div>
               <div className="card auction-card" style={{ maxWidth: '340px' }}>
                 <div className="auction-card-media">
-                  <img
-                    src={images[0] || SAMPLE_PHOTOS[category] || 'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?auto=format&fit=crop&w=600&q=80'}
-                    alt="Preview"
-                  />
+                  {images[0] ? (
+                    <img
+                      src={images[0]}
+                      alt="Preview"
+                    />
+                  ) : (
+                    <div style={{
+                      width: '100%',
+                      height: '200px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      background: 'var(--color-bg-alt, #f8fafc)',
+                      color: 'var(--color-text-light, #94a3b8)',
+                      gap: '0.5rem'
+                    }}>
+                      <Upload size={28} opacity={0.5} />
+                      <span style={{ fontSize: '0.8rem' }}>Upload photo to preview</span>
+                    </div>
+                  )}
                   <div className="auction-card-badges">
                     <span className="badge badge-category">{category}</span>
                     <span className="badge badge-condition">{condition}</span>

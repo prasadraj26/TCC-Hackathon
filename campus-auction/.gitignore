@@ -11,6 +11,7 @@ node_modules/
 .env.production.local
 *.pem
 serviceAccountKey.json
+server/serviceAccountKey.json
 *firebase-adminsdk*.json
 
 # Build outputs

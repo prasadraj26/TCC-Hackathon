@@ -7,37 +7,10 @@ import {
 } from 'firebase/auth';
 import { auth, isFirebaseConfigured } from './firebase';
 
-export const DEMO_USERS = [
-  {
-    uid: 'user_alex_senior',
-    email: 'alex.sharma@campus.edu',
-    displayName: 'Alex Sharma',
-    role: 'Graduating Senior (Seller)',
-    campusYear: 'Final Year B.Tech CS',
-    hostel: 'Hostel 4, Room 218'
-  },
-  {
-    uid: 'user_priya_junior',
-    email: 'priya.patel@campus.edu',
-    displayName: 'Priya Patel',
-    role: 'Junior Student (Buyer)',
-    campusYear: '2nd Year Mechanical',
-    hostel: 'Hostel 7, Room 104'
-  },
-  {
-    uid: 'user_rohan_tech',
-    email: 'rohan.verma@campus.edu',
-    displayName: 'Rohan Verma',
-    role: 'Tech Enthusiast (Bidder)',
-    campusYear: '3rd Year Electrical',
-    hostel: 'Hostel 2, Room 302'
-  }
-];
+const SESSION_STORAGE_KEY = 'campusbid_session_user';
 
-const DEMO_STORAGE_KEY = 'campusbid_demo_user';
-
-export function getStoredDemoUser() {
-  const raw = localStorage.getItem(DEMO_STORAGE_KEY);
+export function getStoredUser() {
+  const raw = localStorage.getItem(SESSION_STORAGE_KEY);
   if (raw) {
     try {
       return JSON.parse(raw);
@@ -45,15 +18,14 @@ export function getStoredDemoUser() {
       // ignore
     }
   }
-  // Default demo user is Alex Sharma
-  return DEMO_USERS[0];
+  return null;
 }
 
-export function setStoredDemoUser(user) {
+export function setStoredUser(user) {
   if (user) {
-    localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(user));
+    localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(user));
   } else {
-    localStorage.removeItem(DEMO_STORAGE_KEY);
+    localStorage.removeItem(SESSION_STORAGE_KEY);
   }
 }
 
@@ -63,16 +35,17 @@ export async function loginWithEmail(email, password) {
     return cred.user;
   }
 
-  // Demo mode login
-  const found = DEMO_USERS.find(u => u.email.toLowerCase() === email.toLowerCase());
-  const user = found || {
-    uid: `user_demo_${Date.now()}`,
+  // Local authentication session when Firebase is not connected
+  if (!email || !password) {
+    throw new Error('Email and password are required.');
+  }
+
+  const user = {
+    uid: `user_${email.replace(/[^a-zA-Z0-9]/g, '_')}`,
     email,
-    displayName: email.split('@')[0],
-    campusYear: 'Campus Student',
-    hostel: 'Campus Hostel'
+    displayName: email.split('@')[0]
   };
-  setStoredDemoUser(user);
+  setStoredUser(user);
   return user;
 }
 
@@ -85,16 +58,19 @@ export async function registerWithEmail(email, password, displayName, details = 
     return cred.user;
   }
 
-  // Demo mode register
+  // Local registration session when Firebase is not connected
+  if (!email || !password) {
+    throw new Error('Email and password are required.');
+  }
+
   const user = {
-    uid: `user_${Date.now()}`,
+    uid: `user_${email.replace(/[^a-zA-Z0-9]/g, '_')}`,
     email,
     displayName: displayName || email.split('@')[0],
-    role: 'Campus Student',
-    campusYear: details.campusYear || 'Campus Student',
-    hostel: details.hostel || 'Hostel Block'
+    campusYear: details.campusYear || '',
+    hostel: details.hostel || ''
   };
-  setStoredDemoUser(user);
+  setStoredUser(user);
   return user;
 }
 
@@ -102,14 +78,14 @@ export async function logoutUser() {
   if (isFirebaseConfigured && auth) {
     await signOut(auth);
   }
-  setStoredDemoUser(null);
+  setStoredUser(null);
 }
 
 export async function getAuthToken(currentUser) {
   if (isFirebaseConfigured && auth?.currentUser) {
     return await auth.currentUser.getIdToken();
   }
-  if (currentUser) {
+  if (currentUser?.uid) {
     return `demo_${currentUser.uid}`;
   }
   return null;
@@ -120,8 +96,8 @@ export function subscribeToAuth(callback) {
     return onAuthStateChanged(auth, callback);
   }
 
-  // Demo mode initial trigger
-  const demoUser = getStoredDemoUser();
-  callback(demoUser);
+  // Initialize with null or current active session (no auto-selection of demo users)
+  const activeUser = getStoredUser();
+  callback(activeUser);
   return () => {};
 }

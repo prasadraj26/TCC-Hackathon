@@ -1,11 +1,6 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
+import { isFirebaseConfigured } from '../services/firebase';
 import {
-  isFirebaseConfigured
-} from '../services/firebase';
-import {
-  DEMO_USERS,
-  getStoredDemoUser,
-  setStoredDemoUser,
   loginWithEmail,
   registerWithEmail,
   logoutUser,
@@ -45,11 +40,6 @@ export function AuthProvider({ children }) {
     setCurrentUser(null);
   };
 
-  const switchDemoUser = (user) => {
-    setStoredDemoUser(user);
-    setCurrentUser(user);
-  };
-
   const getAuthHeaders = async () => {
     const token = await getAuthToken(currentUser);
     const headers = {
@@ -68,11 +58,9 @@ export function AuthProvider({ children }) {
     currentUser,
     loading,
     isDemoMode,
-    demoUsers: DEMO_USERS,
     login,
     register,
     logout,
-    switchDemoUser,
     getAuthHeaders
   };
 

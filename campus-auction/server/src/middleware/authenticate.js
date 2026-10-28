@@ -18,9 +18,16 @@ export async function authenticate(req, res, next) {
       token = authHeader.split('Bearer ')[1].trim();
     }
 
-    // Check for demo token or demo user header when in Demo Mode
+    // Check for demo token or user header when in local/test Mode
     if (!isFirebaseConfigured || token?.startsWith('demo_') || demoUserIdHeader) {
-      const demoUid = demoUserIdHeader || (token?.startsWith('demo_') ? token.replace('demo_', '') : 'user_alex_senior');
+      const demoUid = demoUserIdHeader || (token?.startsWith('demo_') ? token.replace('demo_', '') : null);
+      if (!demoUid) {
+        return res.status(401).json({
+          success: false,
+          error: 'Authentication required. Missing user identity.'
+        });
+      }
+
       const user = mockUsers[demoUid] || {
         uid: demoUid,
         email: `${demoUid}@campus.edu`,

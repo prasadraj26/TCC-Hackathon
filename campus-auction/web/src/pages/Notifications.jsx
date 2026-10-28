@@ -165,8 +165,8 @@ export default function Notifications() {
       ) : (
         <div className="empty-state">
           <div className="empty-state-icon"><Bell size={28} /></div>
-          <h3>All caught up!</h3>
-          <p>No new notifications. You'll be alerted whenever someone outbids you or responds to your listing.</p>
+          <h3>No notifications yet</h3>
+          <p>You'll be alerted whenever someone outbids you or responds to your listing.</p>
         </div>
       )}
     </div>

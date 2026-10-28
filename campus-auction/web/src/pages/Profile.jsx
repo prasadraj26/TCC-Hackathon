@@ -39,7 +39,10 @@ export default function Profile() {
     return (
       <div className="container" style={{ padding: '4rem 1.5rem', textAlign: 'center' }}>
         <h2>Sign In to View Profile</h2>
-        <Link to="/login" className="btn btn-primary" style={{ marginTop: '1rem' }}>Log In</Link>
+        <p style={{ color: 'var(--color-text-muted)', margin: '0.5rem 0 1.5rem' }}>
+          Please sign in with your student account to access your campus profile and statistics.
+        </p>
+        <Link to="/login" className="btn btn-primary">Log In</Link>
       </div>
     );
   }
@@ -89,7 +92,7 @@ export default function Profile() {
               Campus Role / Year
             </div>
             <div style={{ fontWeight: 600, marginTop: '0.2rem' }}>
-              {currentUser.campusYear || currentUser.role || 'Final Year B.Tech'}
+              {currentUser.campusYear || currentUser.role || 'Student'}
             </div>
           </div>
 
@@ -98,7 +101,7 @@ export default function Profile() {
               Hostel Pickup Spot
             </div>
             <div style={{ fontWeight: 600, marginTop: '0.2rem' }}>
-              {currentUser.hostel || 'Hostel 4'}
+              {currentUser.hostel || 'Campus'}
             </div>
           </div>
         </div>

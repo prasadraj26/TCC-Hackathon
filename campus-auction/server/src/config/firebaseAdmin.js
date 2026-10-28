@@ -1,7 +1,10 @@
-import admin from 'firebase-admin';
+
+import { initializeApp, cert, applicationDefault, getApps } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
+import { getAuth } from 'firebase-admin/auth';
 import dotenv from 'dotenv';
-import fs from 'fs';
-import path from 'path';
+import fs from 'node:fs';
+import path from 'node:path';
 
 dotenv.config();
 
@@ -13,31 +16,46 @@ const projectId = process.env.FIREBASE_PROJECT_ID;
 const credPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
 
 try {
-  if (credPath && fs.existsSync(path.resolve(credPath))) {
-    const serviceAccount = JSON.parse(fs.readFileSync(path.resolve(credPath), 'utf8'));
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
+  if (getApps().length > 0) {
+    const app = getApps()[0];
+    db = getFirestore(app);
+    auth = getAuth(app);
+    isFirebaseConfigured = true;
+    console.log('[Firebase Admin] Reusing existing Firebase app.');
+  } else if (credPath && fs.existsSync(path.resolve(credPath))) {
+    const serviceAccount = JSON.parse(
+      fs.readFileSync(path.resolve(credPath), 'utf8')
+    );
+
+    const app = initializeApp({
+      credential: cert(serviceAccount),
       projectId: serviceAccount.project_id || projectId
     });
-    isFirebaseConfigured = true;
-    console.log('[Firebase Admin] Successfully initialized with service account key.');
-  } else if (projectId && projectId !== 'your-firebase-project-id') {
-    admin.initializeApp({
-      projectId: projectId
-    });
-    isFirebaseConfigured = true;
-    console.log(`[Firebase Admin] Initialized with project ID: ${projectId}`);
-  } else {
-    console.warn('[Firebase Admin] No real Firebase credentials found. Running in Local/Demo Mode.');
-  }
 
-  if (isFirebaseConfigured) {
-    db = admin.firestore();
-    auth = admin.auth();
+    db = getFirestore(app);
+    auth = getAuth(app);
+    isFirebaseConfigured = true;
+
+    console.log('[Firebase Admin] Initialized with service account.');
+  } else if (projectId && projectId !== 'your-firebase-project-id') {
+    const app = initializeApp({
+      credential: applicationDefault(),
+      projectId
+    });
+
+    db = getFirestore(app);
+    auth = getAuth(app);
+    isFirebaseConfigured = true;
+
+    console.log('[Firebase Admin] Initialized with Application Default Credentials.');
+  } else {
+    console.warn('[Firebase Admin] Credentials missing. Running in demo mode.');
   }
 } catch (error) {
-  console.warn('[Firebase Admin] Initialization failed, falling back to Local/Demo Mode:', error.message);
+  console.error('[Firebase Admin] Initialization failed:', error.message);
   isFirebaseConfigured = false;
+  db = null;
+  auth = null;
 }
 
-export { admin, db, auth, isFirebaseConfigured };
+export { db, auth, isFirebaseConfigured };

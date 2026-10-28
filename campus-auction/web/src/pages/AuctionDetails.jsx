@@ -32,7 +32,8 @@ import {
   AlertCircle,
   CheckCircle2,
   Lock,
-  ArrowLeft
+  ArrowLeft,
+  Package
 } from 'lucide-react';
 
 export default function AuctionDetails() {
@@ -264,10 +265,28 @@ export default function AuctionDetails() {
         <div>
           {/* Main Photo Gallery */}
           <div className="auction-gallery-main">
-            <img
-              src={auction.images?.[selectedImage] || 'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?auto=format&fit=crop&w=1000&q=80'}
-              alt={auction.title}
-            />
+            {auction.images?.[selectedImage] ? (
+              <img
+                src={auction.images[selectedImage]}
+                alt={auction.title}
+              />
+            ) : (
+              <div style={{
+                width: '100%',
+                height: '100%',
+                minHeight: '360px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: 'var(--color-bg-alt, #f8fafc)',
+                color: 'var(--color-text-light, #94a3b8)',
+                gap: '0.75rem'
+              }}>
+                <Package size={52} opacity={0.35} />
+                <span style={{ fontSize: '0.9rem' }}>No item image uploaded</span>
+              </div>
+            )}
           </div>
 
           {/* Photo Thumbnails */}

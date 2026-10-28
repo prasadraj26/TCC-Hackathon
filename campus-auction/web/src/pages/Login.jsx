@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Gavel, UserCheck } from 'lucide-react';
+import { Gavel } from 'lucide-react';
 
 export default function Login() {
-  const { login, isDemoMode, demoUsers, switchDemoUser } = useAuth();
+  const { login } = useAuth();
   const navigate = useNavigate();
 
   const [email, setEmail] = useState('');
@@ -24,11 +24,6 @@ export default function Login() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleQuickDemoLogin = (user) => {
-    switchDemoUser(user);
-    navigate('/');
   };
 
   return (
@@ -52,26 +47,6 @@ export default function Login() {
             <h1>Campus Student Login</h1>
             <p>Access your listings and active campus bids</p>
           </div>
-
-          {/* Quick Demo Switcher if in Demo Mode */}
-          {isDemoMode && (
-            <div className="demo-account-picker">
-              <h4>Quick Demo Evaluation Accounts:</h4>
-              {demoUsers.map(user => (
-                <div
-                  key={user.uid}
-                  className="demo-user-card"
-                  onClick={() => handleQuickDemoLogin(user)}
-                >
-                  <div>
-                    <div className="user-title">{user.displayName}</div>
-                    <div className="user-role">{user.role} &bull; {user.hostel}</div>
-                  </div>
-                  <UserCheck size={16} color="#059669" />
-                </div>
-              ))}
-            </div>
-          )}
 
           {error && <div className="alert-box alert-danger">{error}</div>}
 

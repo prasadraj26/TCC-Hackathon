@@ -66,6 +66,14 @@ async function runTests() {
     return auction;
   }
 
+  // 0. Clean marketplace initialization: returns empty auction list when no listings exist
+  await test('0. Clean marketplace initialization: returns empty auction list when no listings exist', async () => {
+    mockAuctions.length = 0;
+    const initialListings = await auctionService.getAuctions({});
+    assert.strictEqual(Array.isArray(initialListings), true);
+    assert.strictEqual(initialListings.length, 0, 'Clean marketplace must have 0 initial auctions');
+  });
+
   // 1. Reject a bid below the minimum
   await test('1. Reject a bid below the minimum required price', async () => {
     resetTestAuction();

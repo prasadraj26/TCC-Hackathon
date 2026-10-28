@@ -191,9 +191,11 @@ export default function Home() {
             <div className="empty-state-icon">
               <Search size={28} />
             </div>
-            <h3>No auctions found</h3>
+            <h3>{searchQuery || activeCategory !== 'All' ? 'No matching auctions found' : 'No auctions yet'}</h3>
             <p>
-              No listings matched your active filter or search query. Try clearing your search or post the first listing in this category!
+              {searchQuery || activeCategory !== 'All'
+                ? 'No listings matched your active filter or search query. Try clearing your search.'
+                : 'No auctions yet. Be the first to list an item!'}
             </p>
             <Link to="/create-listing" className="btn btn-accent btn-sm">
               Post an Item for Auction

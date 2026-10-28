@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import CountdownTimer from '../common/CountdownTimer';
 import { formatINR } from '../../utils/formatters';
-import { MapPin, Users, Flame } from 'lucide-react';
+import { MapPin, Users, Flame, Package } from 'lucide-react';
 
 export default function AuctionCard({ auction }) {
   const isLive = auction.status === 'LIVE';
@@ -11,11 +11,27 @@ export default function AuctionCard({ auction }) {
   return (
     <Link to={`/auctions/${auction.id}`} className="card auction-card">
       <div className="auction-card-media">
-        <img
-          src={auction.images?.[0] || 'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?auto=format&fit=crop&w=600&q=80'}
-          alt={auction.title}
-          loading="lazy"
-        />
+        {auction.images?.[0] ? (
+          <img
+            src={auction.images[0]}
+            alt={auction.title}
+            loading="lazy"
+          />
+        ) : (
+          <div style={{
+            width: '100%',
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'var(--color-bg-alt, #f8fafc)',
+            color: 'var(--color-text-light, #94a3b8)',
+            minHeight: '210px'
+          }}>
+            <Package size={36} opacity={0.4} />
+          </div>
+        )}
 
         <div className="auction-card-badges">
           <span className="badge badge-category">
