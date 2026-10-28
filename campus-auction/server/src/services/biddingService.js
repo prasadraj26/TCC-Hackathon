@@ -2,6 +2,7 @@ import { db, isFirebaseConfigured } from '../config/firebaseAdmin.js';
 import { mockAuctions, mockBids } from '../utils/mockStore.js';
 import { createNotification } from './notificationService.js';
 import { processAutoBidsAfterNewBid } from './autoBidService.js';
+import { getUserProfile, getUsersMap, formatDisplayName, isRawUidOrFake } from './userService.js';
 
 /**
  * Executes a manual bid within an atomic transaction.
@@ -10,7 +11,8 @@ import { processAutoBidsAfterNewBid } from './autoBidService.js';
  */
 export async function placeBid(auctionId, amountPaise, user) {
   const bidderUid = user.uid;
-  const bidderName = user.name || user.email?.split('@')[0] || 'Campus Student';
+  const profile = await getUserProfile(bidderUid);
+  const bidderName = formatDisplayName(profile?.name || user.name, bidderUid);
 
   if (!Number.isInteger(amountPaise) || amountPaise <= 0) {
     const error = new Error('Bid amount must be a positive integer in paise.');
@@ -243,6 +245,8 @@ export async function placeBid(auctionId, amountPaise, user) {
  * Get public bid history for an auction.
  */
 export async function getAuctionBids(auctionId) {
+  let list = [];
+
   if (isFirebaseConfigured && db) {
     try {
       const snapshot = await db
@@ -252,13 +256,30 @@ export async function getAuctionBids(auctionId) {
         .orderBy('timestamp', 'desc')
         .get();
 
-      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     } catch (err) {
       console.warn('[BiddingService] Firestore get bids failed:', err.message);
     }
   }
 
-  return mockBids
-    .filter(b => b.auctionId === auctionId)
-    .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+  if (list.length === 0) {
+    list = mockBids
+      .filter(b => b.auctionId === auctionId)
+      .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+  }
+
+  // Resolve real bidder names from user profiles (handling old or missing name records)
+  const uids = [...new Set(list.map(b => b.bidderUid).filter(Boolean))];
+  const namesMap = await getUsersMap(uids);
+
+  return list.map(b => {
+    let resolvedName = namesMap[b.bidderUid];
+    if (!resolvedName || resolvedName === 'User') {
+      resolvedName = formatDisplayName(b.bidderName, b.bidderUid);
+    }
+    return {
+      ...b,
+      bidderName: resolvedName
+    };
+  });
 }

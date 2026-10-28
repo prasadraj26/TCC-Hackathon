@@ -10,17 +10,24 @@ export default function Register() {
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [campusYear, setCampusYear] = useState('2nd Year B.Tech');
-  const [hostel, setHostel] = useState('Hostel 4, Room 102');
+  const [campusYear, setCampusYear] = useState('');
+  const [hostel, setHostel] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const handleRegisterSubmit = async (e) => {
     e.preventDefault();
+    if (!displayName.trim()) {
+      setError('Please provide your actual full name.');
+      return;
+    }
     setLoading(true);
     setError('');
     try {
-      await register(email, password, displayName, { campusYear, hostel });
+      await register(email, password, displayName.trim(), {
+        campusYear: campusYear.trim(),
+        hostel: hostel.trim()
+      });
       navigate('/');
     } catch (err) {
       setError(err.message || 'Registration failed.');

@@ -8,6 +8,7 @@ import bidRoutes from './routes/bids.js';
 import autoBidRoutes from './routes/autoBids.js';
 import uploadRoutes from './routes/uploads.js';
 import notificationRoutes from './routes/notifications.js';
+import userRoutes from './routes/users.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { getAuctions } from './services/auctionService.js';
 
@@ -22,7 +23,7 @@ app.use(cors({
   origin: [CLIENT_ORIGIN, 'http://localhost:5173', 'http://127.0.0.1:5173'],
   credentials: true
 }));
-app.use(express.json());
+app.use(express.json({limit: '10mb' }));
 
 // Request logger for visibility
 app.use((req, res, next) => {
@@ -48,6 +49,7 @@ app.use('/api/auctions/:id/auto-bid', autoBidRoutes);
 app.use('/api/auctions/:id/auto-bids', autoBidRoutes);
 app.use('/api/uploads', uploadRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/users', userRoutes);
 
 // Error Handling
 app.use(errorHandler);

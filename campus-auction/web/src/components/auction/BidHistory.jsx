@@ -33,7 +33,7 @@ export default function BidHistory({ bids = [], currentLeaderUid }) {
                 <td>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: isLeading ? 700 : 500 }}>
                     {isLeading ? <Crown size={15} color="#10b981" /> : <User size={14} color="#64748b" />}
-                    <span>{bid.bidderName || 'Campus Student'}</span>
+                    <span>{bid.bidderName || 'User'}</span>
                   </div>
                 </td>
                 <td style={{ fontWeight: 700, color: isLeading ? 'var(--color-accent)' : 'inherit' }}>

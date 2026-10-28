@@ -345,9 +345,9 @@ export default function AuctionDetails() {
                 <User size={22} />
               </div>
               <div>
-                <div style={{ fontWeight: 700 }}>{auction.sellerName || 'Campus Senior'}</div>
+                <div style={{ fontWeight: 700 }}>{auction.sellerName || 'User'}</div>
                 <div style={{ fontSize: '0.8rem', color: 'var(--color-text-light)' }}>
-                  Verified Student ({auction.sellerEmail?.split('@')[1] || 'campus.edu'})
+                  {auction.sellerEmail || 'Campus Seller'}
                 </div>
               </div>
             </div>

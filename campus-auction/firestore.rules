@@ -2,7 +2,9 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Helper functions
+    // =========================================================================
+    // HELPER FUNCTIONS
+    // =========================================================================
     function isAuthenticated() {
       return request.auth != null;
     }
@@ -10,62 +12,128 @@ service cloud.firestore {
     function isOwner(userId) {
       return isAuthenticated() && request.auth.uid == userId;
     }
-    
-    // User Profiles
+
+    // Whitelist allowed user profile fields
+    function hasValidUserKeys(data) {
+      return data.keys().hasOnly(['uid', 'name', 'email', 'campusYear', 'hostel', 'createdAt', 'updatedAt']);
+    }
+
+    // Validation for creating a new user profile document
+    function isValidUserCreate(userId) {
+      let data = request.resource.data;
+      return isOwner(userId)
+        && data.uid == userId
+        && data.email == request.auth.token.email
+        && data.name is string
+        && data.name.size() > 0
+        && data.name.size() <= 100
+        && hasValidUserKeys(data)
+        // Prevent client from setting verification, admin, or role flags
+        && !('verified' in data)
+        && !('isVerified' in data)
+        && !('isAdmin' in data)
+        && !('role' in data);
+    }
+
+    // Validation for updating an existing user profile document
+    function isValidUserUpdate(userId) {
+      let data = request.resource.data;
+      let prev = resource.data;
+      return isOwner(userId)
+        // Document UID and email are immutable
+        && data.uid == prev.uid
+        && data.email == prev.email
+        // Name must be a non-empty string under 100 characters
+        && data.name is string
+        && data.name.size() > 0
+        && data.name.size() <= 100
+        // Restrict modifications strictly to name, campusYear, hostel, and updatedAt
+        && request.resource.data.diff(prev).affectedKeys().hasOnly(['name', 'campusYear', 'hostel', 'updatedAt'])
+        // Prevent injecting verification, admin, or role flags
+        && !('verified' in data)
+        && !('isVerified' in data)
+        && !('isAdmin' in data)
+        && !('role' in data);
+    }
+
+    // =========================================================================
+    // 1. USER PROFILES (/users/{userId})
+    // =========================================================================
+    // - Any authenticated student can read user profiles so seller & bidder names resolve.
+    // - Users can ONLY create and update their OWN document (matching request.auth.uid).
+    // - Sensitive attributes (verification, role, uid, email) cannot be forged or mutated.
+    // - Direct document deletion is disallowed.
     match /users/{userId} {
-      allow read: if true;
-      allow create, update: if isOwner(userId);
+      allow read: if isAuthenticated();
+      allow create: if isValidUserCreate(userId);
+      allow update: if isValidUserUpdate(userId);
       allow delete: if false;
     }
     
-    // Auctions
-    // Public read for exploration; sensitive updates (bids, status transitions) 
-    // are strictly performed via the Express backend with Firebase Admin SDK 
-    // to preserve atomic invariants and prevent bypassing validation.
+    // =========================================================================
+    // 2. AUCTIONS (/auctions/{auctionId})
+    // =========================================================================
+    // - Public read so any student or guest can browse live listings and countdown timers.
+    // - Direct client creation requires authentication with matching sellerUid and LIVE initial state.
+    // - Direct client edits are restricted to pre-bid metadata; financial/state fields are locked.
+    // - All sensitive state transitions and bidding are processed via Express + Admin SDK.
     match /auctions/{auctionId} {
       allow read: if true;
       
-      // Direct client creation: allowed if user is authenticated and sets themselves as seller
-      allow create: if isAuthenticated() && request.resource.data.sellerUid == request.auth.uid
+      allow create: if isAuthenticated() 
+                    && request.resource.data.sellerUid == request.auth.uid
                     && request.resource.data.status == 'LIVE'
                     && request.resource.data.bidCount == 0;
                     
-      // Direct client edits: seller can update description/images if no bids placed yet.
-      // Crucial: clients CANNOT modify currentPrice, currentLeaderUid, bidCount, endsAt, or status directly!
-      allow update: if isAuthenticated() && resource.data.sellerUid == request.auth.uid
+      allow update: if isAuthenticated() 
+                    && resource.data.sellerUid == request.auth.uid
                     && resource.data.bidCount == 0
-                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['currentPrice', 'currentLeaderUid', 'bidCount', 'status', 'endsAt']);
+                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+                        'currentPrice', 'currentPricePaise', 'currentLeaderUid', 
+                        'currentLeaderName', 'bidCount', 'status', 'endsAt', 'minIncrementPaise'
+                      ]);
                     
-      allow delete: if false; // cancellations are handled via status transition
+      allow delete: if false;
       
-      // Bid History Subcollection
-      // Bids are strictly appended through backend transactions to ensure concurrency control,
-      // server-side clock verification, and anti-sniping extension enforcement.
+      // Public Bid Ledger (/auctions/{auctionId}/bids/{bidId})
+      // Publicly readable for marketplace peer transparency.
+      // Direct client writes are disallowed; bids must be processed by Express backend
+      // for atomic locking, clock verification, and anti-sniping extension enforcement.
       match /bids/{bidId} {
         allow read: if true;
-        allow write: if false; // Must be placed via Express REST backend
+        allow write: if false;
       }
     }
     
-    // Auto Bids Collection
-    // Students can manage their own auto-bid preferences.
+    // =========================================================================
+    // 3. AUTO BIDS (/autoBids/{autoBidId})
+    // =========================================================================
+    // Students can read their own auto-bid preferences.
+    // Creation/cancellation is managed through Express backend.
     match /autoBids/{autoBidId} {
       allow read: if isAuthenticated() && resource.data.bidderUid == request.auth.uid;
-      allow write: if false; // Registered through server to validate against current price
+      allow write: if false;
     }
     
-    // Notifications Collection
+    // =========================================================================
+    // 4. NOTIFICATIONS (/notifications/{notificationId})
+    // =========================================================================
+    // Students can read and mark their own notifications as read.
     match /notifications/{notificationId} {
       allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
       allow update: if isAuthenticated() && resource.data.userId == request.auth.uid
                     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read', 'readAt']);
-      allow create, delete: if false; // Generated by server
+      allow create, delete: if false;
     }
     
-    // Saved Searches Collection
+    // =========================================================================
+    // 5. SAVED SEARCHES (/savedSearches/{searchId})
+    // =========================================================================
+    // Students can manage their own search alert preferences.
     match /savedSearches/{searchId} {
-      allow read, write: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow read, update, delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
       allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
     }
   }
 }
+

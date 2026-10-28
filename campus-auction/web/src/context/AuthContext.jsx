@@ -5,7 +5,8 @@ import {
   registerWithEmail,
   logoutUser,
   getAuthToken,
-  subscribeToAuth
+  subscribeToAuth,
+  updateUserProfile
 } from '../services/authService';
 
 const AuthContext = createContext(null);
@@ -35,6 +36,17 @@ export function AuthProvider({ children }) {
     return user;
   };
 
+  const updateProfile = async (profileData) => {
+    if (!currentUser?.uid) throw new Error('Not authenticated.');
+    const updated = await updateUserProfile(currentUser.uid, profileData);
+    setCurrentUser(prev => ({
+      ...prev,
+      ...updated,
+      displayName: updated.name || prev?.displayName
+    }));
+    return updated;
+  };
+
   const logout = async () => {
     await logoutUser();
     setCurrentUser(null);
@@ -60,6 +72,7 @@ export function AuthProvider({ children }) {
     isDemoMode,
     login,
     register,
+    updateProfile,
     logout,
     getAuthHeaders
   };

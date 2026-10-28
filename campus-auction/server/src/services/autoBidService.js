@@ -1,6 +1,7 @@
 import { db, isFirebaseConfigured } from '../config/firebaseAdmin.js';
 import { mockAuctions, mockBids, mockAutoBids } from '../utils/mockStore.js';
 import { createNotification } from './notificationService.js';
+import { getUserProfile, getUsersMap, formatDisplayName } from './userService.js';
 
 /**
  * Register or update an automatic bidding limit for a student on an auction.
@@ -33,11 +34,14 @@ export async function registerAutoBid({ auctionId, maxAmountPaise, user }) {
     throw new Error(`Maximum bid must be at least ₹${minRequired / 100}`);
   }
 
+  const profile = await getUserProfile(user.uid);
+  const resolvedBidderName = formatDisplayName(profile?.name || user.name, user.uid);
+
   const autoBidRecord = {
     id: `autobid-${auctionId}-${user.uid}`,
     auctionId,
     bidderUid: user.uid,
-    bidderName: user.name || user.email.split('@')[0],
+    bidderName: resolvedBidderName,
     maxAmountPaise,
     active: true,
     createdAt: new Date().toISOString()
@@ -67,19 +71,30 @@ export async function registerAutoBid({ auctionId, maxAmountPaise, user }) {
  * Transparent public records as specified in problem statement.
  */
 export async function getAuctionAutoBids(auctionId) {
+  let list = [];
   if (isFirebaseConfigured && db) {
     try {
       const snap = await db.collection('autoBids')
         .where('auctionId', '==', auctionId)
         .where('active', '==', true)
         .get();
-      return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     } catch (err) {
       console.warn('[AutoBidService] Firestore query failed:', err.message);
     }
   }
 
-  return mockAutoBids.filter(b => b.auctionId === auctionId && b.active);
+  if (list.length === 0) {
+    list = mockAutoBids.filter(b => b.auctionId === auctionId && b.active);
+  }
+
+  const uids = [...new Set(list.map(b => b.bidderUid).filter(Boolean))];
+  const namesMap = await getUsersMap(uids);
+
+  return list.map(b => ({
+    ...b,
+    bidderName: namesMap[b.bidderUid] || formatDisplayName(b.bidderName, b.bidderUid)
+  }));
 }
 
 /**

@@ -15,10 +15,15 @@ let isFirebaseConfigured = false;
 const projectId = process.env.FIREBASE_PROJECT_ID;
 const credPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
 
+const isTestEnv = process.env.NODE_ENV === 'test' || (process.argv[1] && process.argv[1].includes('test'));
+
 try {
-  if (getApps().length > 0) {
+  if (isTestEnv) {
+    console.log('[Firebase Admin] Running in isolated test mode (in-memory mock store).');
+  } else if (getApps().length > 0) {
     const app = getApps()[0];
     db = getFirestore(app);
+    db.settings({ ignoreUndefinedProperties: true });
     auth = getAuth(app);
     isFirebaseConfigured = true;
     console.log('[Firebase Admin] Reusing existing Firebase app.');
@@ -33,6 +38,7 @@ try {
     });
 
     db = getFirestore(app);
+    db.settings({ ignoreUndefinedProperties: true });
     auth = getAuth(app);
     isFirebaseConfigured = true;
 
@@ -44,6 +50,7 @@ try {
     });
 
     db = getFirestore(app);
+    db.settings({ ignoreUndefinedProperties: true });
     auth = getAuth(app);
     isFirebaseConfigured = true;
 

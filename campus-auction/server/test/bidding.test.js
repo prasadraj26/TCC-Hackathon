@@ -1,3 +1,5 @@
+process.env.NODE_ENV = 'test';
+
 /**
  * Comprehensive Test Suite for Campus Auction Core Bidding Engine & Lifecycle Rules.
  * Verifies all 11 critical test cases specified in Section 13.
@@ -7,7 +9,8 @@ import assert from 'node:assert';
 import { placeBid, getAuctionBids } from '../src/services/biddingService.js';
 import { registerAutoBid, getAuctionAutoBids } from '../src/services/autoBidService.js';
 import * as auctionService from '../src/services/auctionService.js';
-import { mockAuctions, mockBids, mockAutoBids } from '../src/utils/mockStore.js';
+import { mockUsers, mockAuctions, mockBids, mockAutoBids } from '../src/utils/mockStore.js';
+import { getUserProfile, upsertUserProfile, formatDisplayName, isRawUidOrFake } from '../src/services/userService.js';
 
 let passedCount = 0;
 let failedCount = 0;
@@ -263,6 +266,71 @@ async function runTests() {
     // Valid: Confirm handover -> SOLD
     await auctionService.confirmHandover(testAuctionId, seller);
     assert.strictEqual(a.status, 'SOLD');
+  });
+
+  // 12. User profile name resolution and safe fallback (Change 2)
+  await test('12. Real user names: profile creation, name resolution, and safe fallback without fake identities', async () => {
+    // 1. Raw UID or missing profile safely falls back to 'User'
+    assert.strictEqual(isRawUidOrFake('user_1234567890abcdef', 'user_1234567890abcdef'), true);
+    assert.strictEqual(formatDisplayName('user_1234567890abcdef', 'user_1234567890abcdef'), 'User');
+    assert.strictEqual(formatDisplayName(null, 'user_xyz'), 'User');
+    assert.strictEqual(formatDisplayName('', 'user_xyz'), 'User');
+    assert.strictEqual(formatDisplayName('Campus Student', 'user_xyz'), 'User');
+
+    // 2. Real name is formatted and accepted
+    assert.strictEqual(isRawUidOrFake('Pooja Mehta', 'user_pooja'), false);
+    assert.strictEqual(formatDisplayName('Pooja Mehta', 'user_pooja'), 'Pooja Mehta');
+
+    // 3. Upsert user profile updates stored record
+    const updated = await upsertUserProfile('test_user_pooja', {
+      name: 'Pooja Mehta',
+      campusYear: '3rd Year EE',
+      hostel: 'Hostel 2'
+    });
+    assert.strictEqual(updated.name, 'Pooja Mehta');
+    assert.strictEqual(updated.campusYear, '3rd Year EE');
+
+    // 4. Retrieve profile confirms persistence
+    const fetched = await getUserProfile('test_user_pooja');
+    assert.strictEqual(fetched.name, 'Pooja Mehta');
+    assert.strictEqual(fetched.profileIncomplete, false);
+
+    // 5. Creating an auction resolves the real seller name from user profile
+    const createdAuction = await auctionService.createAuction({
+      title: 'Real Profile Test Item',
+      category: 'Electronics',
+      condition: 'Good',
+      startingPricePaise: 50000,
+      minIncrementPaise: 5000,
+      endsAt: new Date(Date.now() + 3600000).toISOString(),
+      location: 'Hostel 2'
+    }, { uid: 'test_user_pooja', email: 'pooja@campus.edu' });
+
+    assert.strictEqual(createdAuction.sellerName, 'Pooja Mehta');
+
+    // 6. Placing a bid resolves the real bidder name from user profile
+    await upsertUserProfile('test_user_kunal', {
+      name: 'Kunal Verma',
+      campusYear: '1st Year CS'
+    });
+
+    const bidRes = await placeBid(createdAuction.id, 60000, {
+      uid: 'test_user_kunal',
+      email: 'kunal@campus.edu'
+    });
+    assert.strictEqual(bidRes.bid.bidderName, 'Kunal Verma');
+
+    // 7. Bid history includes the real bidder name
+    const bidsList = await getAuctionBids(createdAuction.id);
+    assert(bidsList.length > 0);
+    assert.strictEqual(bidsList[0].bidderName, 'Kunal Verma');
+
+    // Clean up in-memory store so marketplace remains fresh
+    mockAuctions.length = 0;
+    mockBids.length = 0;
+    mockAutoBids.length = 0;
+    delete mockUsers['test_user_pooja'];
+    delete mockUsers['test_user_kunal'];
   });
 
   console.log('\n======================================================');

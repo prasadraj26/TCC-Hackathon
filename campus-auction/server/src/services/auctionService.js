@@ -1,6 +1,7 @@
 import { db, isFirebaseConfigured } from '../config/firebaseAdmin.js';
 import { mockAuctions } from '../utils/mockStore.js';
 import { createNotification, checkSavedSearchesAndNotify } from './notificationService.js';
+import { getUserProfile, getUsersMap, formatDisplayName, isRawUidOrFake } from './userService.js';
 
 /**
  * Checks if an auction has reached its closing deadline and transitions its status.
@@ -162,6 +163,24 @@ export async function getAuctions(filters = {}) {
     });
   }
 
+  // Resolve real seller and leader names from user profiles (handling old or missing name records)
+  const uids = [...new Set(list.flatMap(a => [a.sellerUid, a.currentLeaderUid]).filter(Boolean))];
+  const namesMap = await getUsersMap(uids);
+  for (const a of list) {
+    if (a.sellerUid && namesMap[a.sellerUid] && namesMap[a.sellerUid] !== 'User') {
+      a.sellerName = namesMap[a.sellerUid];
+    } else if (isRawUidOrFake(a.sellerName, a.sellerUid)) {
+      a.sellerName = 'User';
+    }
+    if (a.currentLeaderUid) {
+      if (namesMap[a.currentLeaderUid] && namesMap[a.currentLeaderUid] !== 'User') {
+        a.currentLeaderName = namesMap[a.currentLeaderUid];
+      } else if (isRawUidOrFake(a.currentLeaderName, a.currentLeaderUid)) {
+        a.currentLeaderName = 'User';
+      }
+    }
+  }
+
   return list;
 }
 
@@ -188,6 +207,19 @@ export async function getAuctionById(id) {
 
   if (!auction) return null;
 
+  // Resolve seller and leader display names safely
+  if (auction.sellerUid) {
+    const sellerProfile = await getUserProfile(auction.sellerUid);
+    auction.sellerName = formatDisplayName(sellerProfile?.name, auction.sellerUid);
+  } else if (isRawUidOrFake(auction.sellerName, auction.sellerUid)) {
+    auction.sellerName = 'User';
+  }
+
+  if (auction.currentLeaderUid) {
+    const leaderProfile = await getUserProfile(auction.currentLeaderUid);
+    auction.currentLeaderName = formatDisplayName(leaderProfile?.name, auction.currentLeaderUid);
+  }
+
   return await checkAndCloseAuctionIfExpired(auction);
 }
 
@@ -210,10 +242,14 @@ export async function createAuction(auctionData, user) {
   const now = new Date().toISOString();
   const id = `auction-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
 
+  // Resolve real display name from authenticated user profile
+  const profile = await getUserProfile(user.uid);
+  const resolvedSellerName = formatDisplayName(profile?.name || user.name, user.uid);
+
   const newAuction = {
     id,
     sellerUid: user.uid,
-    sellerName: user.name || user.email.split('@')[0],
+    sellerName: resolvedSellerName,
     sellerEmail: user.email,
     title,
     category,
